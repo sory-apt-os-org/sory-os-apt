@@ -1,0 +1,19 @@
+Package: cosmic-sory-ia
+Version: 0.0.0
+Architecture: amd64
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Depends: soryos-archive-keyring, libcap2, libfontconfig1, libfreetype6, libxkbcommon0
+Description: SoryOS AI engine — CLI, desktop GUI, TUI, and servers
+ SoryOS AI is a unified workspace built on a fork of OpenAI Codex
+ with COSMIC desktop integration.
+ .
+ This package contains:
+  - sory       : main AI CLI
+  - sory-desktop : COSMIC desktop GUI
+  - sory-tui   : terminal UI (ratatui)
+  - sory-app-server : app server daemon
+  - sory-mcp-server  : MCP protocol server
+  - sory-exec, sory-execpolicy : sandboxed execution
+  - sory-file-search, sory-linux-sandbox
+Section: admin
+Priority: optional

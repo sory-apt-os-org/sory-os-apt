@@ -1,0 +1,13 @@
+Package: libcosmic
+Version: 1.0.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Depends: soryos-archive-keyring, pkgconf, cmake, libexpat1-dev, libfontconfig-dev, libfreetype-dev, libxkbcommon-dev, rust-all
+Description: COSMIC GUI toolkit (Rust) — development headers
+ libcosmic is the Rust GUI toolkit for the COSMIC desktop environment,
+ built on a vendored fork of iced.
+ .
+ This development package provides the build environment for creating
+ COSMIC desktop applications in Rust.
+Section: libdevel
+Priority: optional

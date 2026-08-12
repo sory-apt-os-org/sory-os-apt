@@ -1,0 +1,10 @@
+Package: soryos-appstream-data
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Description: SoryOS AppStream metadata package
+ This package provides the SoryOS AppStream metadata boundary used by the
+ software center and initial setup. It is intentionally small while SoryOS
+ application metadata is migrated module by module.
+Section: admin
+Priority: optional

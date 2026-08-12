@@ -1,0 +1,8 @@
+Package: soryos-hp-wallpapers
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Description: SoryOS HP wallpaper integration package
+ This package reserves the SoryOS HP wallpaper integration boundary.
+Section: misc
+Priority: optional

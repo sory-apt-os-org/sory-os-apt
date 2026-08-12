@@ -1,0 +1,31 @@
+Package: sory* soryos-*
+Pin: origin sory-x.github.io
+Pin-Priority: 1002
+
+Package: sory* soryos-*
+Pin: release o=SoryOS
+Pin-Priority: 1002
+
+Package: sory* soryos-*
+Pin: release *
+Pin-Priority: -1
+
+Package: *
+Pin: origin sory-x.github.io
+Pin-Priority: 1002
+
+Package: *
+Pin: origin archive.ubuntu.com
+Pin-Priority: 50
+
+Package: *
+Pin: origin security.ubuntu.com
+Pin-Priority: 50
+
+Package: soryos-desktop soryos-* sory-* ubuntu-desktop gnome-shell
+Pin: origin archive.ubuntu.com
+Pin-Priority: 50
+
+Package: soryos-desktop soryos-* sory-* ubuntu-desktop gnome-shell
+Pin: origin security.ubuntu.com
+Pin-Priority: 50

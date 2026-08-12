@@ -1,0 +1,217 @@
+name: Build COSMIC Components
+
+on:
+  workflow_dispatch:
+    inputs:
+      components:
+        description: 'Components to build (space-separated, or "all")'
+        required: false
+        default: 'all'
+      force_rebuild:
+        description: 'Force rebuild all components'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 3 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  detect-changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.detect.outputs.changes }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+      - uses: actions/checkout@v4
+        with:
+          repository: sory-x/soryos
+          path: soryos
+          submodules: recursive
+
+      - name: Detect version changes
+        id: detect
+        run: |
+          cd soryos/cosmic-epoch
+          CHANGES=""
+
+          ALL_COMPONENTS="cosmic-applets cosmic-applibrary cosmic-bg cosmic-comp cosmic-edit cosmic-files cosmic-greeter cosmic-icons cosmic-idle cosmic-initial-setup cosmic-launcher cosmic-monitor cosmic-notifications cosmic-osd cosmic-panel cosmic-player cosmic-randr cosmic-screenshot cosmic-session cosmic-settings cosmic-settings-daemon cosmic-sory-ia cosmic-store cosmic-term cosmic-wallpapers cosmic-workspaces-epoch soryos-launcher simple-wrapper xdg-desktop-portal-cosmic"
+
+          for dir in $ALL_COMPONENTS; do
+            if [ ! -d "$dir" ]; then continue; fi
+
+            # Extract Source package name from debian/control
+            if [ -f "$dir/debian/control" ]; then
+              PKG_NAME=$(grep '^Source:' "$dir/debian/control" | sed 's/Source: //')
+            else
+              PKG_NAME="$dir"
+            fi
+
+            # Determine source version
+            if [ -f "$dir/Cargo.toml" ]; then
+              SRC_VER=$(grep '^version' "$dir/Cargo.toml" | head -1 | sed 's/version = "//;s/"//')
+            elif [ -f "$dir/debian/changelog" ]; then
+              SRC_VER=$(head -1 "$dir/debian/changelog" | sed 's/.*(\(.*\)).*/\1/')
+            else
+              continue
+            fi
+
+            # Check pool
+            DEB=$(ls "../../soryos-apt/pool/stable/${PKG_NAME}_"*.deb 2>/dev/null | head -1)
+            if [ -n "$DEB" ]; then
+              POOL_VER=$(basename "$DEB" | sed "s/${PKG_NAME}_//;s/_all.deb//;s/_amd64.deb//")
+            else
+              POOL_VER="none"
+            fi
+
+            if [ "$POOL_VER" = "none" ] || [ "$SRC_VER" != "$POOL_VER" ]; then
+              CHANGES="$CHANGES $dir"
+            fi
+          done
+
+          INPUT="${{ github.event.inputs.components }}"
+          if [ "$INPUT" != "all" ] && [ -n "$INPUT" ]; then
+            CHANGES="$INPUT"
+          fi
+          if [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
+            CHANGES="$ALL_COMPONENTS"
+          fi
+
+          CHANGES=$(echo "$CHANGES" | xargs)
+          if [ -z "$CHANGES" ]; then
+            echo "changes=" >> $GITHUB_OUTPUT
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "changes=$CHANGES" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes: $CHANGES"
+          fi
+
+  build:
+    name: ${{ matrix.component }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJson(format('["{0}"]', join('"',"${{ needs.detect-changes.outputs.changes }}" ,'"'))) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: sory-x/soryos
+          path: soryos
+          submodules: recursive
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-cosmic
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential devscripts debhelper dpkg-dev \
+            cargo rustup pkg-config cmake just \
+            libwayland-dev libxkbcommon-dev libglib2.0-dev \
+            libclang-dev libpipewire-0.3-dev libudev-dev \
+            libinput-dev libgbm-dev libseat-dev libsystemd-dev \
+            libdbus-1-dev libpam0g-dev libssl-dev libzstd-dev \
+            libpixman-1-dev libfontconfig-dev libfreetype-dev \
+            libegl1-mesa-dev libxcb1-dev libdisplay-info-dev \
+            libdav1d-dev libexpat1-dev \
+            libflatpak-dev libpolkit-agent-1-dev \
+            imagemagick fonts-open-sans
+
+      - name: Build with dpkg-buildpackage
+        id: build
+        run: |
+          set -e
+          cd soryos/cosmic-epoch/${{ matrix.component }}
+
+          if [ ! -f debian/control ]; then
+            echo "No debian/control - skipping"
+            echo "no_deb=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          SOURCE=$(grep '^Source:' debian/control | sed 's/Source: //')
+          echo "source=$SOURCE" >> $GITHUB_OUTPUT
+          echo "Building $SOURCE..."
+
+          dpkg-buildpackage -us -uc -b 2>&1 | tail -20
+          echo "no_deb=false" >> $GITHUB_OUTPUT
+
+      - name: Collect .deb
+        if: steps.build.outputs.no_deb != 'true'
+        run: |
+          cd soryos/cosmic-epoch
+          mkdir -p ../../soryos-apt/pool/stable
+          for deb in ${{ steps.build.outputs.source }}_*.deb; do
+            if [ -f "$deb" ]; then
+              cp "$deb" ../../soryos-apt/pool/stable/
+              echo "Collected: $deb"
+            fi
+          done
+
+      - name: Upload .deb
+        if: steps.build.outputs.no_deb != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.component }}
+          path: soryos/cosmic-epoch/${{ steps.build.outputs.source }}_*.deb
+          retention-days: 1
+
+  publish:
+    name: Publish to APT
+    needs: [detect-changes, build]
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Download all .deb artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: soryos-apt/pool/stable
+          pattern: "deb-*"
+          merge-multiple: true
+
+      - name: Generate APT index and sign
+        run: |
+          cd soryos-apt
+          sudo apt-get install -y dpkg-dev
+          ./scripts/generate-index.sh
+          ./scripts/init-signing-key.sh
+          ./scripts/sign-repository.sh
+
+      - name: Commit and push
+        run: |
+          cd soryos-apt
+          git config user.name "SoryOS CI"
+          git config user.email "ci@soryos.local"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Auto-update: ${{ needs.detect-changes.outputs.changes }}"
+            git push origin main
+          fi

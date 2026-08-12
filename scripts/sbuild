@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import sys
+from os import path
+from subprocess import check_call
+
+import distro
+
+UBUNTU_MIRROR = os.environ.get("UBUNTU_MIRROR", "http://archive.ubuntu.com/ubuntu")
+SORYOS_REPO = os.environ.get("SORYOS_REPO", "https://sory-x.github.io/soryos-apt")
+SORYOS_SUITE = os.environ.get("SORYOS_SUITE", "stable")
+SORYOS_KEY = os.environ.get("SORYOS_KEY", ".iso.asc")
+
+parser = argparse.ArgumentParser(description="SoryOS sbuild helper (forké de pop)")
+parser.add_argument("--dist", default=distro.codename())
+parser.add_argument("--arch", default="amd64")
+parser.add_argument("--update", action="store_true")
+parser.add_argument("repo")
+args = parser.parse_args(sys.argv[1:])
+
+chroot_path = "/srv/chroot/" + args.dist + "-" + args.arch + "-sbuild"
+if not path.exists(chroot_path):
+    check_call(
+        [
+            "sudo",
+            "sbuild-createchroot",
+            "--include=gnupg",
+            "--components=main,restricted,universe,multiverse",
+            "--arch=" + args.arch,
+            args.dist,
+            chroot_path,
+            UBUNTU_MIRROR,
+        ]
+    )
+
+if args.update:
+    check_call(
+        [
+            "sudo",
+            "sbuild-update",
+            "--update",
+            "--dist-upgrade",
+            "--clean",
+            "--autoclean",
+            "--autoremove",
+            "--arch=" + args.arch,
+            args.dist,
+        ]
+    )
+
+sbuild = [
+    "sbuild",
+    "--arch=" + args.arch,
+    "--dist=" + args.dist,
+    "--extra-repository=deb " + UBUNTU_MIRROR + " " + args.dist + "-updates main restricted universe multiverse",
+    "--extra-repository=deb-src " + UBUNTU_MIRROR + " " + args.dist + "-updates main restricted universe multiverse",
+    "--extra-repository=deb " + UBUNTU_MIRROR + " " + args.dist + "-security main restricted universe multiverse",
+    "--extra-repository=deb-src " + UBUNTU_MIRROR + " " + args.dist + "-security main restricted universe multiverse",
+    "--extra-repository=deb " + SORYOS_REPO + " " + SORYOS_SUITE + " main",
+    "--extra-repository-key=" + path.join(os.getcwd(), "scripts", SORYOS_KEY),
+    "--no-apt-distupgrade",
+    "--no-run-lintian",
+]
+
+check_call(sbuild, cwd=args.repo)

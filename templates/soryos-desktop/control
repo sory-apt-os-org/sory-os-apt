@@ -1,0 +1,10 @@
+Package: soryos-desktop
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Depends: soryos-archive-keyring, soryos-system-lock, soryos-identity, cosmic-session, cosmic-term, cosmic-store
+Description: SoryOS desktop metapackage
+ This metapackage installs the current SoryOS desktop migration modules.
+ It is intentionally small and does not remove or replace upstream packages.
+Section: metapackages
+Priority: optional

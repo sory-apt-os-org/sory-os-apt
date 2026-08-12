@@ -1,0 +1,9 @@
+Package: gnome-shell-extension-soryos-power
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Depends: soryos-power
+Description: SoryOS GNOME power extension integration package
+ This package reserves the SoryOS GNOME power extension integration boundary.
+Section: gnome
+Priority: optional

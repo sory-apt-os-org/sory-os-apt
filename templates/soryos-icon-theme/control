@@ -1,0 +1,9 @@
+Package: soryos-icon-theme
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Description: SoryOS icon theme package
+ This package provides the SoryOS icon theme boundary used by SoryOS desktop
+ components. It starts small and will grow as application icons are migrated.
+Section: x11
+Priority: optional

@@ -1,0 +1,9 @@
+Package: soryos-io-dkms
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Description: SoryOS IO DKMS integration package
+ This package reserves the SoryOS IO DKMS integration boundary. It does not
+ replace Ubuntu or Debian kernel packages.
+Section: kernel
+Priority: optional

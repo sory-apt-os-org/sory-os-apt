@@ -1,0 +1,8 @@
+Package: soryos-hp-vendor
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Description: SoryOS HP vendor integration package
+ This package reserves the SoryOS HP vendor integration boundary.
+Section: admin
+Priority: optional

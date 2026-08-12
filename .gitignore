@@ -1,0 +1,34 @@
+# Logs
+logs/*.log
+tmp/
+.private/
+
+# Build artifacts (pop-ci style)
+/*.build
+/*.buildinfo
+/*.changes
+/*.ddeb
+/*.deb
+/*.dsc
+/*.tar
+/*.tar.*
+/*.udeb
+/*.upload
+/_build/
+/target/
+__pycache__
+*.pyc
+
+# Source checkouts (pop-ci style)
+/cosmic-epoch/
+/launcher/
+/soryos-iso/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Secrets
+scripts/.github_token

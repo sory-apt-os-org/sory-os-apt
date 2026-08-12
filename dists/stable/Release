@@ -1,0 +1,24 @@
+Architectures: amd64
+Codename: stable
+Components: main
+Date: Sun, 26 Jul 2026 14:04:35 +0000
+Description: SoryOS APT Repository
+Label: SoryOS
+Origin: SoryOS
+Suite: stable
+MD5Sum:
+ 377f92a374241246ca42d1b3ce277566              171 Release
+ 4d25d20f12670d30c431d67ea4dba66b            13348 main/binary-amd64/Packages
+ 8885c8c6522115e70e40e3c3a4867e6b             4226 main/binary-amd64/Packages.gz
+SHA1:
+ bd1528d1916b1e2cd1e0e2b5bb16ea85ba78241c              171 Release
+ 5a78d5fbcaef14348d353e7aa233fb7c0bc33300            13348 main/binary-amd64/Packages
+ ad6066970fb328c68993bf7626d411ab8899ba12             4226 main/binary-amd64/Packages.gz
+SHA256:
+ b10f36ab92e5def4fed1656b23edda3b2762223118a326d40bff53be856f70f6              171 Release
+ ab296c1ddd447e83e505eb977cac1da5051b1238354cdfe880cb8abcf7c32f14            13348 main/binary-amd64/Packages
+ a5744eda988190b57114a9f483c9e5a0fe49d6a522568e7fbe1438afa1aa9aa8             4226 main/binary-amd64/Packages.gz
+SHA512:
+ 969681fb6ea8805129da30e3ffa54a31d7ff5285d3bddd220f4b1413d83bf2b7da13b44bca504e712fe39c180c4698cf4da4311a3060f0adf1af36976978e520              171 Release
+ c3200d803a2d1925ab6cf9187d34d11e031c8addd1c1835f76978f64afe6b293fb4c54397ad1186b42f04b5adab7956ba2253708ad9ac8611d37a0b73b7d1539            13348 main/binary-amd64/Packages
+ 64b7360f600658028c7b831118fadbea133f43cc92aa6b88e0e0d1ba63168f5ba5b2e72aff5ec4b314a7ec27e37beab397da7cdf44bcaf4bed65ab4667aee83d             4226 main/binary-amd64/Packages.gz

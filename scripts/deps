@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -e
+
+# Dépendances de build pour SoryOS
+# Inspiré de pop/scripts/deps
+
+PACKAGES=(
+    # Build essentiels
+    build-essential
+    devscripts
+    debhelper
+    dpkg-dev
+    gnupg
+    gzip
+    xz-utils
+    apt-utils
+
+    # Pour les paquets Rust (COSMIC)
+    cargo
+    rustup
+    pkg-config
+    libwayland-dev
+    libxkbcommon-dev
+    libglib2.0-dev
+    libclang-dev
+    libpipewire-0.3-dev
+    libudev-dev
+    libinput-dev
+    libgbm-dev
+    libseat-dev
+    libsystemd-dev
+    libdbus-1-dev
+    libpam0g-dev
+    libssl-dev
+    libzstd-dev
+    libpixman-1-dev
+    libfontconfig-dev
+    libfreetype-dev
+    cmake
+    just
+    mold
+
+    # Utilitaires APT
+    apt-ftparchive
+    dpkg-scanpackages
+)
+
+sudo apt update
+sudo apt install --yes "${PACKAGES[@]}"

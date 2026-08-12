@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# ci — Point d'entrée CI SoryOS (extrait de pop/src/scripts/ci)
+# Utilise les scripts natifs au lieu de pop-ci (Rust)
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$DIR/.." && pwd)"
+
+case "${1:-build}" in
+  build)
+    exec "$DIR/build-from-source.sh"
+    ;;
+  publish)
+    exec "$DIR/publish-to-github.sh"
+    ;;
+  sign)
+    exec "$DIR/sign-repository.sh"
+    ;;
+  index)
+    exec "$DIR/generate-index.sh"
+    ;;
+  deps)
+    exec "$DIR/deps"
+    ;;
+  apt)
+    exec "$DIR/apt"
+    ;;
+  *)
+    echo "Usage: $0 {build|publish|sign|index|deps|apt}"
+    exit 1
+    ;;
+esac

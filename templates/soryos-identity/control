@@ -1,0 +1,10 @@
+Package: soryos-identity
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Description: SoryOS operating system identity files
+ This package provides SoryOS identity templates and a safe helper to apply
+ SoryOS branding to os-release, lsb-release, and issue files. It does not
+ replace Ubuntu, Debian, kernel, bootloader, apt, dpkg, or systemd packages.
+Section: admin
+Priority: optional

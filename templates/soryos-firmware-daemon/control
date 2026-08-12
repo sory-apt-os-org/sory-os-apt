@@ -1,0 +1,8 @@
+Package: soryos-firmware-daemon
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Description: SoryOS firmware daemon integration package
+ This package reserves the SoryOS firmware daemon integration boundary.
+Section: admin
+Priority: optional

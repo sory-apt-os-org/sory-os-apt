@@ -1,0 +1,9 @@
+Package: soryos-wallpapers
+Version: 0.2.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Description: SoryOS wallpaper package
+ SoryOS wallpapers for the desktop background.
+ This package provides the default SoryOS wallpapers in dark and light variants.
+Section: misc
+Priority: optional

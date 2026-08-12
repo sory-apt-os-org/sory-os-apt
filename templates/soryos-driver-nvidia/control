@@ -1,0 +1,8 @@
+Package: soryos-driver-nvidia
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Description: SoryOS NVIDIA driver integration package
+ This package reserves the SoryOS NVIDIA driver integration boundary.
+Section: admin
+Priority: optional

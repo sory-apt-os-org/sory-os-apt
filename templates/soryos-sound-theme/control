@@ -1,0 +1,11 @@
+Package: soryos-sound-theme
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Depends: sound-theme-freedesktop
+Description: SoryOS sound theme package
+ This package defines the SoryOS desktop sound theme boundary. It currently
+ inherits the freedesktop sound theme while SoryOS-specific sounds are designed
+ and packaged.
+Section: sound
+Priority: optional

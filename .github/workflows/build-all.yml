@@ -1,0 +1,243 @@
+name: Build & Publish SoryOS APT
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  build-integration:
+    name: Integration packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Build integration packages
+        run: |
+          cd soryos-apt
+          mkdir -p pool/stable
+          ./scripts/build-packages.sh
+
+      - name: Upload integration debs
+        uses: actions/upload-artifact@v4
+        with:
+          name: debs-integration
+          path: soryos-apt/pool/stable/*.deb
+          retention-days: 1
+
+  build-cosmic:
+    name: ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - cosmic-applets
+          - cosmic-applibrary
+          - cosmic-bg
+          - cosmic-comp
+          - cosmic-edit
+          - cosmic-files
+          - cosmic-greeter
+          - cosmic-icons
+          - cosmic-idle
+          - cosmic-initial-setup
+          - cosmic-launcher
+          - cosmic-monitor
+          - cosmic-notifications
+          - cosmic-osd
+          - cosmic-panel
+          - cosmic-player
+          - cosmic-randr
+          - cosmic-screenshot
+          - cosmic-session
+          - cosmic-settings
+          - cosmic-settings-daemon
+          - cosmic-sory-ia
+          - cosmic-store
+          - cosmic-term
+          - cosmic-wallpapers
+          - cosmic-workspaces-epoch
+          - soryos-launcher
+          - simple-wrapper
+          - xdg-desktop-portal-cosmic
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: sory-x/soryos
+          path: soryos
+          submodules: recursive
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-cosmic
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential devscripts debhelper dpkg-dev \
+            gnupg gzip xz-utils apt-utils \
+            cargo rustup pkg-config cmake just \
+            libwayland-dev libxkbcommon-dev libglib2.0-dev \
+            libclang-dev libpipewire-0.3-dev libudev-dev \
+            libinput-dev libgbm-dev libseat-dev libsystemd-dev \
+            libdbus-1-dev libpam0g-dev libssl-dev libzstd-dev \
+            libpixman-1-dev libfontconfig-dev libfreetype-dev \
+            libegl1-mesa-dev libxcb1-dev libdisplay-info-dev \
+            libdav1d-dev libexpat1-dev \
+            libflatpak-dev libpolkit-agent-1-dev \
+            imagemagick fonts-open-sans \
+            meson patchelf
+
+      - name: Build with dpkg-buildpackage
+        id: build
+        run: |
+          set -e
+          cd soryos/cosmic-epoch/${{ matrix.component }}
+
+          if [ ! -f debian/control ]; then
+            echo "No debian/control - skipping dpkg-buildpackage"
+            echo "no_deb=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          SOURCE=$(grep '^Source:' debian/control | sed 's/Source: //')
+          echo "source=$SOURCE" >> $GITHUB_OUTPUT
+          echo "Building $SOURCE..."
+
+          dpkg-buildpackage -us -uc -b 2>&1 | tail -20
+
+          echo "no_deb=false" >> $GITHUB_OUTPUT
+
+      - name: Collect .deb
+        if: steps.build.outputs.no_deb != 'true'
+        run: |
+          cd soryos/cosmic-epoch
+          SOURCE="${{ steps.build.outputs.source }}"
+          echo "Looking for debs matching source=$SOURCE"
+          ls -la ${SOURCE}_*.deb 2>/dev/null || true
+          for deb in ${SOURCE}_*.deb; do
+            if [ -f "$deb" ]; then
+              echo "Found: $deb"
+              echo "pkg_deb=$deb" >> $GITHUB_OUTPUT
+            fi
+          done
+
+      - name: Upload .deb artifact
+        if: steps.build.outputs.no_deb != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.component }}
+          path: soryos/cosmic-epoch/${{ steps.build.outputs.source }}_*.deb
+          retention-days: 1
+
+  build-sound-theme:
+    name: cosmic-sound-theme
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: sory-x/soryos
+          path: soryos
+          submodules: recursive
+
+      - name: Build cosmic-sound-theme with meson
+        run: |
+          cd soryos/cosmic-epoch/cosmic-sound-theme
+          VERSION=$(grep "version:" meson.build | head -1 | sed "s/.*version: '*//;s/'*,//;s/[' ]//g")
+          PKGDIR="/tmp/pkg/cosmic-sound-theme"
+          rm -rf "$PKGDIR"
+          mkdir -p "$PKGDIR/DEBIAN"
+
+          cat > "$PKGDIR/DEBIAN/control" <<CTRL
+Package: cosmic-sound-theme
+Version: $VERSION
+Section: sound
+Priority: optional
+Architecture: all
+Maintainer: SoryOS Maintainers <maintainers@soryos.local>
+Description: COSMIC Sound Theme
+ Sound theme for the COSMIC desktop environment.
+CTRL
+
+          meson setup build --prefix=/usr --destdir="$PKGDIR"
+          meson install -C build
+          dpkg-deb --build "$PKGDIR" "../${PKG_NAME}_${VERSION}_all.deb"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-cosmic-sound-theme
+          path: soryos/cosmic-epoch/cosmic-sound-theme_*.deb
+          retention-days: 1
+
+  publish:
+    name: Publish to GitHub Pages
+    needs:
+      - build-integration
+      - build-cosmic
+      - build-sound-theme
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Download all .deb artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: soryos-apt/pool/stable
+          pattern: "deb-*"
+          merge-multiple: true
+
+      - name: List all collected debs
+        run: ls -la soryos-apt/pool/stable/
+
+      - name: Generate APT index
+        run: |
+          cd soryos-apt
+          sudo apt-get install -y dpkg-dev
+          ./scripts/generate-index.sh
+
+      - name: Sign repository
+        run: |
+          cd soryos-apt
+          ./scripts/init-signing-key.sh
+          ./scripts/sign-repository.sh
+
+      - name: Test repository
+        run: |
+          cd soryos-apt
+          ./scripts/test-local-repo.sh
+
+      - name: Commit and push
+        run: |
+          cd soryos-apt
+          git config user.name "SoryOS CI"
+          git config user.email "ci@soryos.local"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            PACKAGES=$(ls pool/stable/*.deb 2>/dev/null | wc -l)
+            git commit -m "Auto-build: $PACKAGES packages ($(date -u +%Y-%m-%d))"
+            git push origin main
+          fi

@@ -1,0 +1,472 @@
+# SoryOS Source Repositories — Inventaire complet
+# Généré depuis l'analyse des 9 dépôts locaux + submodules cosmic-epoch
+# Versions : epoch-1.4.0 (sauf indication contraire)
+# =========================================================================
+
+upstream_org: sory-x
+fork_org: sory-x
+# NOTE: toutes les URLs ci-dessous pointent vers nos forks sory-x
+# Les originaux upstream sont chez sory-x
+epoch_version: "1.4.0"
+
+repos:
+
+  # ═════════════════════════════════════════════════════════════════════
+  # COSMIC Desktop — Composants Rust (debhelper/cargo)
+  # Tous dans le monorepo sory-x/soryos
+  # ═════════════════════════════════════════════════════════════════════
+
+  # ── Dépôts avec debian/control complets (build dpkg natif) ────────
+
+  - name: cosmic-comp
+    url: https://github.com/sory-x/cosmic-comp
+    type: rust
+    branch: master
+    version: "0.1"
+    description: Wayland compositor for the COSMIC desktop environment
+    architecture: amd64 arm64
+    depends:
+      - libegl1
+      - libwayland-server0
+    recommends:
+      - cosmic-session
+      - libgl1-mesa-dri
+    build_depends:
+      - cargo, cmake, libegl1-mesa-dev, libfontconfig-dev, libgbm-dev
+      - libinput-dev, libpixman-1-dev, libseat-dev, libsystemd-dev
+      - libudev-dev, libwayland-dev, libxcb1-dev, libxkbcommon-dev
+      - libdisplay-info-dev, rustc (>=1.57)
+    local_path: /home/sory/Bureau/soryos/cosmic-epoch/cosmic-comp
+    has_debian: true
+
+  - name: cosmic-files
+    url: https://github.com/sory-x/cosmic-files
+    type: rust
+    branch: master
+    version: "1.4.0"
+    description: COSMIC File Manager
+    architecture: amd64 arm64
+    depends:
+      - xdg-utils
+    build_depends:
+      - debhelper-compat (=13), git, just (>= 1.13.0)
+      - libclang-dev, libglib2.0-dev, libxkbcommon-dev, pkg-config, rust-all
+    local_path: /home/sory/Bureau/soryos/cosmic-epoch/cosmic-files
+    has_debian: true
+    binary_packages:
+      - cosmic-files
+      - cosmic-files-applet
+
+  - name: cosmic-greeter
+    url: https://github.com/sory-x/cosmic-greeter
+    type: rust
+    branch: master
+    version: "0.1.0"
+    description: COSMIC Greeter (login screen)
+    architecture: amd64 arm64
+    pre_depends:
+      - greetd
+    depends:
+      - adduser, cosmic-comp, cosmic-greeter-daemon, cosmic-randr, dbus
+    recommends:
+      - xinit
+    provides: x-display-manager
+    build_depends:
+      - debhelper-compat (=13), git, just (>= 1.13.0)
+      - libclang-dev, libinput-dev, libpam-dev, libwayland-dev
+      - libxkbcommon-dev, pkg-config, rust-all
+    local_path: /home/sory/Bureau/soryos/cosmic-epoch/cosmic-greeter
+    has_debian: true
+    binary_packages:
+      - cosmic-greeter
+      - cosmic-greeter-daemon
+
+  - name: cosmic-launcher
+    url: https://github.com/sory-x/cosmic-launcher
+    type: rust
+    branch: master
+    version: "1.0.12"
+    description: COSMIC Launcher (application launcher)
+    architecture: amd64 arm64
+    depends:
+      - soryos-launcher
+    build_depends:
+      - debhelper (>= 11), debhelper-compat (= 11)
+      - rustc (>=1.63), cargo, just, intltool
+      - libxkbcommon-dev, libwayland-dev, pkg-config
+    local_path: /home/sory/Bureau/soryos/cosmic-epoch/cosmic-launcher
+    has_debian: true
+
+  - name: cosmic-panel
+    url: https://github.com/sory-x/cosmic-panel
+    type: rust
+    branch: master
+    version: "0.1.0"
+    description: XDG Shell Wrapper Panel for COSMIC
+    architecture: amd64 arm64
+    build_depends:
+      - debhelper (>= 11), debhelper-compat (= 11)
+      - just, cargo, libwayland-dev, libxkbcommon-dev, pkg-config, desktop-file-utils
+    local_path: /home/sory/Bureau/soryos/cosmic-epoch/cosmic-panel
+    has_debian: true
+    binary_packages:
+      - cosmic-panel
+      - cosmic-panel-bin
+      - cosmic-panel-config
+
+  - name: cosmic-settings
+    url: https://github.com/sory-x/cosmic-settings
+    type: rust
+    branch: master
+    version: "1.0.12"
+    description: Settings application for the COSMIC desktop environment
+    architecture: amd64 arm64
+    depends:
+      - accountsservice, cosmic-randr, cosmic-settings-daemon
+      - gettext, iso-codes, network-manager-gnome
+      - network-manager-openvpn, network-manager-openvpn-gnome, xkb-data
+    recommends:
+      - adw-gtk3
+    build_depends:
+      - debhelper-compat (=13), cmake, fonts-open-sans, just, libclang-dev
+      - libdav1d-dev, libexpat1-dev, libfontconfig-dev, libfreetype-dev
+      - libinput-dev, libudev-dev, libwayland-dev, libxkbcommon-dev
+      - pkg-config, rust-all
+    local_path: /home/sory/Bureau/soryos/cosmic-epoch/cosmic-settings
+    has_debian: true
+
+  # ── Dépôts sans debian/control local (build cargo manuel ou via cosmic-epoch) ──
+
+  - name: cosmic-epoch
+    url: https://github.com/sory-x/cosmic-epoch
+    type: meta
+    branch: master
+    version: "1.4.0"
+    description: COSMIC Desktop Environment (meta-repo with submodules)
+    local_path: /home/sory/Bureau/soryos/cosmic-epoch
+    has_debian: false
+    submodules:
+      - cosmic-applets
+      - cosmic-applibrary
+      - cosmic-bg
+      - cosmic-comp
+      - cosmic-edit
+      - cosmic-files
+      - cosmic-greeter
+      - cosmic-icons
+      - cosmic-idle
+      - cosmic-initial-setup
+      - cosmic-launcher
+      - cosmic-monitor
+      - cosmic-notifications
+      - cosmic-osd
+      - cosmic-panel
+      - cosmic-player
+      - cosmic-randr
+      - cosmic-screenshot
+      - cosmic-session
+      - cosmic-settings
+      - cosmic-settings-daemon
+      - cosmic-sound-theme
+      - cosmic-store
+      - cosmic-term
+      - cosmic-wallpapers
+      - cosmic-workspaces-epoch
+      - soryos-launcher
+      - xdg-desktop-portal-cosmic
+      - simple-wrapper
+
+  - name: iso
+    url: https://github.com/sory-x/iso
+    type: make
+    branch: master
+    version: "24.04"
+    description: ISO builder for SoryOS
+    local_path: /home/sory/Bureau/soryos/iso
+    has_debian: false
+
+  - name: libcosmic
+    url: null
+    type: rust
+    branch: master
+    version: "1.0.0"
+    description: COSMIC GUI toolkit (Rust)
+    local_path: /home/sory/Bureau/soryos/libcosmic
+    has_debian: false
+    binary_packages:
+      - libcosmic
+      - cosmic-config
+      - cosmic-config-derive
+      - cosmic-theme
+      - cosmic-icons
+
+  # ── Projets autonomes dans cosmic-epoch/ ──
+
+  - name: cosmic-sory-ia
+    url: null
+    type: rust
+    branch: master
+    version: "0.0.0"
+    description: SoryOS AI engine — fork OpenAI Codex + COSMIC desktop
+    local_path: /home/sory/Bureau/soryos/cosmic-epoch/cosmic-sory-ia
+    has_debian: false
+
+  # ── Sous-modules de cosmic-epoch (tous clonés) ──
+
+  - name: cosmic-applets
+    url: https://github.com/sory-x/cosmic-applets
+    type: rust
+    branch: master
+    description: COSMIC applets for cosmic-panel
+
+  - name: cosmic-applibrary
+    url: https://github.com/sory-x/cosmic-applibrary
+    type: rust
+    branch: master
+    description: COSMIC App Library
+
+  - name: cosmic-bg
+    url: https://github.com/sory-x/cosmic-bg
+    type: rust
+    branch: master
+    description: COSMIC background service
+
+  - name: cosmic-edit
+    url: https://github.com/sory-x/cosmic-edit
+    type: rust
+    branch: master
+    description: COSMIC Text Editor
+
+  - name: cosmic-icons
+    url: https://github.com/sory-x/cosmic-icons
+    type: rust
+    branch: master
+    description: COSMIC Icon Theme
+
+  - name: cosmic-idle
+    url: https://github.com/sory-x/cosmic-idle
+    type: rust
+    branch: master
+    description: COSMIC idle management daemon
+
+  - name: cosmic-initial-setup
+    url: https://github.com/sory-x/cosmic-initial-setup
+    type: rust
+    branch: master
+    description: COSMIC first-run setup wizard
+
+  - name: cosmic-monitor
+    url: https://github.com/sory-x/cosmic-monitor
+    type: rust
+    branch: master
+    description: COSMIC display monitor service
+
+  - name: cosmic-notifications
+    url: https://github.com/sory-x/cosmic-notifications
+    type: rust
+    branch: master
+    description: COSMIC notification daemon
+
+  - name: cosmic-osd
+    url: https://github.com/sory-x/cosmic-osd
+    type: rust
+    branch: master
+    description: COSMIC on-screen display
+
+  - name: cosmic-player
+    url: https://github.com/sory-x/cosmic-player
+    type: rust
+    branch: master
+    description: COSMIC media player
+
+  - name: cosmic-randr
+    url: https://github.com/sory-x/cosmic-randr
+    type: rust
+    branch: master
+    description: COSMIC display configuration library
+
+  - name: cosmic-screenshot
+    url: https://github.com/sory-x/cosmic-screenshot
+    type: rust
+    branch: master
+    description: COSMIC screenshot utility
+
+  - name: cosmic-session
+    url: https://github.com/sory-x/cosmic-session
+    type: rust
+    branch: master
+    description: COSMIC session manager
+
+  - name: cosmic-settings-daemon
+    url: https://github.com/sory-x/cosmic-settings-daemon
+    type: rust
+    branch: master
+    description: COSMIC settings daemon
+
+  - name: cosmic-sound-theme
+    url: https://github.com/sory-x/cosmic-sound-theme
+    type: rust
+    branch: master
+    description: COSMIC sound theme
+
+  - name: cosmic-store
+    url: https://github.com/sory-x/cosmic-store
+    type: rust
+    branch: master
+    description: COSMIC app store
+
+  - name: cosmic-term
+    url: https://github.com/sory-x/cosmic-term
+    type: rust
+    branch: master
+    description: COSMIC terminal emulator
+
+  - name: cosmic-wallpapers
+    url: https://github.com/sory-x/cosmic-wallpapers
+    type: rust
+    branch: master
+    description: COSMIC wallpapers
+
+  - name: cosmic-workspaces-epoch
+    url: https://github.com/sory-x/cosmic-workspaces-epoch
+    type: rust
+    branch: master
+    description: COSMIC workspaces overview
+
+  - name: xdg-desktop-portal-cosmic
+    url: https://github.com/sory-x/xdg-desktop-portal-cosmic
+    type: rust
+    branch: master
+    description: XDG Desktop Portal backend for COSMIC
+
+  - name: soryos-launcher
+    url: https://github.com/sory-x/launcher
+    type: rust
+    branch: master
+    local_path: /home/sory/Bureau/soryos/cosmic-epoch/soryos-launcher
+    has_debian: true
+    description: SoryOS IPC-based desktop launcher service
+
+  - name: simple-wrapper
+    url: https://github.com/sory-x/simple-wrapper
+    type: rust
+    branch: master
+    description: Simple xdg-shell wrapper
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Dépôts SoryOS (org sory-x)
+  # ═════════════════════════════════════════════════════════════════════
+
+  - name: soryos-apt
+    url: https://github.com/sory-x/soryos-apt
+    type: meta
+    branch: main
+    version: "1.0"
+    description: Dépôt APT SoryOS (ce méta-dépôt)
+
+  - name: soryos-iso
+    url: https://github.com/sory-x/soryos-iso
+    type: make
+    branch: main
+    description: ISO builder SoryOS (fork de pop-os/iso)
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Paquets SoryOS d'intégration (locaux, templates/)
+  # ═════════════════════════════════════════════════════════════════════
+
+  - name: soryos-archive-keyring
+    type: local
+    template: soryos-archive-keyring
+
+  - name: soryos-system-lock
+    type: local
+    template: soryos-system-lock
+
+  - name: soryos-identity
+    type: local
+    template: soryos-identity
+
+  - name: soryos-appstream-data
+    type: local
+    template: soryos-appstream-data
+
+  - name: soryos-icon-theme
+    type: local
+    template: soryos-icon-theme
+
+  - name: soryos-sound-theme
+    type: local
+    template: soryos-sound-theme
+
+  - name: soryos-hp-vendor
+    type: local
+    template: soryos-hp-vendor
+
+  - name: soryos-hp-vendor-dkms
+    type: local
+    template: soryos-hp-vendor-dkms
+
+  - name: soryos-hp-wallpapers
+    type: local
+    template: soryos-hp-wallpapers
+
+  - name: soryos-wallpapers
+    type: local
+    template: soryos-wallpapers
+
+  - name: soryos-acpi-dkms
+    type: local
+    template: soryos-acpi-dkms
+
+  - name: soryos-dkms
+    type: local
+    template: soryos-dkms
+
+  - name: soryos-io-dkms
+    type: local
+    template: soryos-io-dkms
+
+  - name: soryos-driver
+    type: local
+    template: soryos-driver
+
+  - name: soryos-driver-nvidia
+    type: local
+    template: soryos-driver-nvidia
+
+  - name: soryos-firmware-daemon
+    type: local
+    template: soryos-firmware-daemon
+
+  - name: soryos-oled
+    type: local
+    template: soryos-oled
+
+  - name: soryos-power
+    type: local
+    template: soryos-power
+
+  - name: gnome-shell-extension-soryos-power
+    type: local
+    template: gnome-shell-extension-soryos-power
+
+  - name: soryos-desktop
+    type: local
+    template: soryos-desktop
+
+  - name: cosmic-sory-ia
+    type: local
+    template: cosmic-sory-ia
+    version: "0.0.0"
+    description: Métapaquet des binaires SoryOS AI (CLI, desktop, TUI, serveurs)
+    build_depends:
+      - cargo, rust-all, libcap-dev, libfontconfig-dev, libfreetype-dev
+      - libxkbcommon-dev, pkgconf, cmake, libexpat1-dev
+
+  - name: libcosmic
+    type: local
+    template: libcosmic
+    version: "1.0.0"
+    description: COSMIC GUI toolkit (Rust)
+
+# Total: 29 paquets locaux d'intégration

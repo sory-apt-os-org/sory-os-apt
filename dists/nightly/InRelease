@@ -1,0 +1,44 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Architectures: amd64
+Codename: nightly
+Components: main
+Date: Sun, 26 Jul 2026 14:04:36 +0000
+Description: SoryOS APT Repository
+Label: SoryOS
+Origin: SoryOS
+Suite: nightly
+MD5Sum:
+ 0b53da26d35611e6d4f22248491be64d              173 Release
+ d41d8cd98f00b204e9800998ecf8427e                0 main/binary-amd64/Packages
+ 4a4dd3598707603b3f76a2378a4504aa               20 main/binary-amd64/Packages.gz
+SHA1:
+ ac0486f1120f3e228059251c7dbf5dd40cd1488b              173 Release
+ da39a3ee5e6b4b0d3255bfef95601890afd80709                0 main/binary-amd64/Packages
+ a0fddd5458378c1bf3c10dd2f5c060d1347741ed               20 main/binary-amd64/Packages.gz
+SHA256:
+ 0cdbb64880c6b054351760714273416e8b49f77300af8c18e8aedb1741b81ab2              173 Release
+ e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855                0 main/binary-amd64/Packages
+ f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec               20 main/binary-amd64/Packages.gz
+SHA512:
+ b0ba1e71af75a9e4641fa0ed94aefc6c9d39cc55f2f879fd730e4ad061529fe393839c735ae70a566e325594411ea60d3f77d41e81b56bef34ffdcd6c23a45f8              173 Release
+ cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e                0 main/binary-amd64/Packages
+ 1b46b9b08d5b338be9d732a1724795b2eab63daffde377218727c90857b79fe6a47bceed495117fcde60f7339812ef75ef4c69f82dd79fb69b6cbf8006b521f2               20 main/binary-amd64/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iQJFBAEBCgAvFiEEXjNRDGbFTb2CLzMnMe5HY57vYqkFAmpmE/QRHGFwdEBzb3J5
+b3MubG9jYWwACgkQMe5HY57vYqlP2A/8CuxdAx2yaDXfJZJDt2SVf1/SLQu39ccJ
+P7hD7UGddo0V6UGiFhXkVWdNTkbs+Ryr3c4k/xErjGiWVrRR/FEtRlBY3rmtk3Ks
+g2OQmFRyJ/T8LP9xtrjDrG/9i+AsSVkUXmxd0Sdq0biw0hvB5XsN0sfd+dVib2Yt
+9YQ0ei/U/j2cZXbw17F/LSzW8gp7Gdu1HzgSCB5rYVDPzCRqj/OzkLY2GKm/ftBZ
+KASw2ANn3nWHDFvOCS8z3TyTC/RqVnGOCxv9XC/TdN6F5hzPsFRogvyWhx8HgL8I
+VHZf/PI40QwNf3//F1s5Z9EpM2uiNjNn2hONKr9rI4HZwjnrr30aps+8dFJqLgp4
+pMdHrgou2JXVLlpjpbCn43tV47TGrkeM3TgRLxjPhUPfK4XoF+DUwM1h1dsobcGa
+KJuyC4nVYGFZiZE4B+ApfELRyZhvgzqqumXBNDbYrNR6WnN2wF3qgruNU4ji33zS
+Wl9RE4f5oH5+7koxenbPkismfrVIPYQsYHIgO2kJgJjwlxvxlEZnSDUrqFg9lxhB
+C9zHHRhmzEg35EtMsD+4KarkDM7+sOhRA1MZl0A0FnAMbcN61f8B8gQkuVnr015o
+v9a+NsaRehbUuxckw0PAfZWREbczDCWnx/usg/dFvwHu9YyWdjyAaSXuLWCrOWwV
+UzhW7h03LEM=
+=97jc
+-----END PGP SIGNATURE-----

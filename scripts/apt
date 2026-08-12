@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -e
+
+# Gestion des dépôts APT SoryOS (staging)
+# Inspiré de pop/scripts/apt
+
+source /etc/os-release
+
+SORYOS_DIR="$(dirname "$(dirname "$(readlink -f "$0")")")"
+SORYOS_REPO_URL="${SORYOS_REPO_URL:-https://sory-x.github.io/soryos-apt}"
+REPOS="${SORYOS_REPO_URL}"
+
+case "$1" in
+  add)
+    if [ -z "$2" ]; then
+      echo "Usage: $0 add <suite>"
+      echo "       $0 remove <suite>"
+      echo "       $0 list"
+      exit 1
+    fi
+
+    suite="$2"
+
+    if command -v apt-manage > /dev/null; then
+      echo "Utilisez 'apt-manage add' pour gérer les dépôts"
+      exit 1
+    fi
+
+    echo "Ajout de la préférence pour '$suite'"
+    sudo tee "/etc/apt/preferences.d/soryos-${suite}.pref" > /dev/null <<EOF
+Package: *
+Pin: release o=SoryOS, n=$suite
+Pin-Priority: 1002
+EOF
+
+    echo "Ajout du dépôt '$suite'"
+    sudo tee "/etc/apt/sources.list.d/soryos-${suite}.sources" <<EOF
+Types: deb
+URIs: ${REPOS}
+Suites: ${suite}
+Components: main
+Signed-By: ${SORYOS_DIR}/keyrings/soryos-archive-keyring.gpg
+EOF
+
+    sudo apt-get update
+    echo "Dépôt SoryOS '$suite' ajouté"
+    ;;
+
+  remove)
+    if [ -z "$2" ]; then
+      echo "Usage: $0 remove <suite>"
+      exit 1
+    fi
+
+    suite="$2"
+    sudo rm -f "/etc/apt/preferences.d/soryos-${suite}.pref"
+    sudo rm -f "/etc/apt/sources.list.d/soryos-${suite}.sources"
+    sudo apt-get update
+    echo "Dépôt SoryOS '$suite' retiré"
+    ;;
+
+  list)
+    echo "Dépôts SoryOS configurés :"
+    grep -l "soryos-" /etc/apt/sources.list.d/*.sources 2>/dev/null || echo "Aucun"
+    ;;
+
+  *)
+    echo "Usage:"
+    echo "  $0 add <suite>    - Ajouter un dépôt SoryOS"
+    echo "  $0 remove <suite> - Retirer un dépôt SoryOS"
+    echo "  $0 list           - Lister les dépôts SoryOS"
+    exit 1
+    ;;
+esac
