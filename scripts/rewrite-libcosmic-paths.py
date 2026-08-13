@@ -21,7 +21,26 @@ SETTINGS_CRATE_DIRS: dict[str, str] = {
     "cosmic-settings-upower-subscription": "cosmic-settings/subscriptions/upower",
     "cosmic-settings-daemon-subscription": "cosmic-settings/subscriptions/settings-daemon",
     "cosmic-settings-audio-client": "cosmic-settings-daemon/audio-client",
+    "cosmic-settings-accessibility-subscription": "cosmic-settings/subscriptions/accessibility",
+    "cosmic-settings-a11y-manager-subscription": "cosmic-settings/subscriptions/a11y-manager",
+    "cosmic-settings-network-manager-subscription": "cosmic-settings/subscriptions/network-manager",
+    "cosmic-settings-bluetooth-subscription": "cosmic-settings/subscriptions/bluetooth",
 }
+
+EPOCH_CRATE_DIRS: dict[str, str] = {
+    "cosmic-bg-config": "cosmic-bg/config",
+    "cosmic-comp-config": "cosmic-comp/cosmic-comp-config",
+    "cosmic-panel-config": "cosmic-panel/cosmic-panel-config",
+    "cosmic-notifications-util": "cosmic-notifications/util",
+    "cosmic-notifications-config": "cosmic-notifications/config",
+    "cosmic-randr-shell": "cosmic-randr/cosmic-randr-shell",
+    "cosmic-client-toolkit": "cosmic-protocols/client-toolkit",
+    "cctk": "cosmic-protocols/client-toolkit",
+}
+
+POP_OS_EPOCH_GIT = re.compile(
+    r"https://github\.com/pop-os/([A-Za-z0-9_-]+)(?:\.git)?"
+)
 
 CRATE_DIRS: dict[str, str] = {
     "libcosmic": "",
@@ -33,10 +52,30 @@ CRATE_DIRS: dict[str, str] = {
 
 
 def crate_dir(libcosmic: Path, dep_name: str) -> Path:
-    sub = CRATE_DIRS.get(dep_name, dep_name.replace("_", "-"))
     if dep_name == "libcosmic":
         return libcosmic
+    if dep_name in CRATE_DIRS:
+        sub = CRATE_DIRS[dep_name]
+    elif dep_name.startswith("iced_"):
+        sub = "iced/" + dep_name[len("iced_") :]
+    else:
+        sub = dep_name.replace("_", "-")
     return libcosmic / sub
+
+
+def epoch_crate_dir(cosmic_epoch: Path, dep_name: str, inner: str) -> Path | None:
+    if dep_name in EPOCH_CRATE_DIRS:
+        return cosmic_epoch / EPOCH_CRATE_DIRS[dep_name]
+    if dep_name in SETTINGS_CRATE_DIRS:
+        return cosmic_epoch / SETTINGS_CRATE_DIRS[dep_name]
+    match = POP_OS_EPOCH_GIT.search(inner)
+    if not match:
+        return None
+    repo = match.group(1)
+    candidate = cosmic_epoch / repo
+    if candidate.is_dir():
+        return candidate
+    return None
 
 
 def rel_path(cargo_file: Path, target: Path) -> str:
@@ -76,6 +115,14 @@ def rewrite_inline_tables(
             assert target is not None
             path = rel_path(cargo_file, target)
             rest = strip_repo_git_keys(inner, SETTINGS_GIT)
+        elif POP_OS_EPOCH_GIT.search(inner) or SETTINGS_GIT.search(inner):
+            target = epoch_crate_dir(cosmic_epoch, dep_name, inner)
+            if target is None and SETTINGS_GIT.search(inner):
+                target = settings_dir(cosmic_epoch, dep_name)
+            if target is None or not target.is_dir():
+                return match.group(0)
+            path = rel_path(cargo_file, target)
+            rest = strip_repo_git_keys(inner, POP_OS_EPOCH_GIT, SETTINGS_GIT)
         else:
             return match.group(0)
         if rest:
@@ -115,10 +162,13 @@ def rewrite_table_sections(
 
         body = "\n".join(section)
         settings_target = settings_dir(cosmic_epoch, dep_name)
+        epoch_target = epoch_crate_dir(cosmic_epoch, dep_name, body)
         if LIBCOSMIC_GIT.search(body):
             path = rel_path(cargo_file, crate_dir(libcosmic, dep_name))
         elif SETTINGS_GIT.search(body) and settings_target is not None:
             path = rel_path(cargo_file, settings_target)
+        elif epoch_target is not None and epoch_target.is_dir():
+            path = rel_path(cargo_file, epoch_target)
         else:
             out.extend(section)
             continue
@@ -174,10 +224,31 @@ def remove_libcosmic_patch_sections(text: str) -> str:
 
 def patch_block(cargo_file: Path, libcosmic: Path, source_url: str) -> str:
     lines = [f"[patch.'{source_url}']"]
+    patched: set[str] = set()
     for crate, sub in CRATE_DIRS.items():
         target = libcosmic / sub if sub else libcosmic
         path = rel_path(cargo_file, target)
         lines.append(f'{crate} = {{ path = "{path}" }}')
+        patched.add(crate)
+    iced_root = libcosmic / "iced"
+    if iced_root.is_dir():
+        for iced_crate in sorted(iced_root.iterdir()):
+            if not iced_crate.is_dir():
+                continue
+            cargo_toml = iced_crate / "Cargo.toml"
+            if not cargo_toml.is_file():
+                continue
+            name_match = re.search(
+                r'(?m)^name\s*=\s*"([^"]+)"', cargo_toml.read_text()
+            )
+            if not name_match:
+                continue
+            crate = name_match.group(1)
+            if crate in patched:
+                continue
+            path = rel_path(cargo_file, iced_crate)
+            lines.append(f'{crate} = {{ path = "{path}" }}')
+            patched.add(crate)
     return "\n".join(lines)
 
 

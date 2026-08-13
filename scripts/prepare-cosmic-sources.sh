@@ -48,8 +48,14 @@ sync_repo "$LIBCOSMIC_REPO" "$LIBCOSMIC_REF" "$WORK_DIR/libcosmic"
 
 git -C "$WORK_DIR/cosmic-epoch" submodule update --init --recursive
 
+# External pop-os repos referenced via path rewrites (not submodules of cosmic-epoch).
+for ext_repo in cosmic-protocols dbus-settings-bindings; do
+  sync_repo "https://github.com/pop-os/${ext_repo}.git" main "$WORK_DIR/cosmic-epoch/${ext_repo}"
+done
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/rewrite-libcosmic-urls.sh" "$WORK_DIR/cosmic-epoch" "$WORK_DIR/libcosmic"
+"$SCRIPT_DIR/regenerate-cargo-locks.sh" "$WORK_DIR/cosmic-epoch"
 
 printf 'cosmic sources ready:\n'
 printf '  cosmic-epoch: %s @ %s\n' "$COSMIC_EPOCH_REPO" "$COSMIC_EPOCH_REF"

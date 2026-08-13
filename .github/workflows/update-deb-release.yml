@@ -91,7 +91,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential devscripts debhelper dpkg-dev \
-            rustup pkg-config cmake just \
+            rustup pkg-config cmake \
             libwayland-dev libxkbcommon-dev libglib2.0-dev \
             libclang-dev libpipewire-0.3-dev libudev-dev \
             libinput-dev libgbm-dev libseat-dev libsystemd-dev \
@@ -100,9 +100,12 @@ jobs:
             libegl1-mesa-dev libxcb1-dev libdisplay-info-dev \
             libdav1d-dev libexpat1-dev \
             libflatpak-dev libpolkit-agent-1-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
             mold nasm \
             imagemagick fonts-open-sans meson patchelf b3sum jq
           rustup default stable
+          rustup toolchain install 1.93 --profile minimal
+          cargo install just --locked
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - name: Build component
@@ -149,7 +152,8 @@ jobs:
 
   publish:
     name: Merge index and replace changed assets
-    needs: build
+    needs: [prepare, build]
+    if: always() && !cancelled() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -165,13 +169,25 @@ jobs:
           sudo apt-get install -y b3sum jq openssl curl
 
       - name: Download rebuilt packages
+        id: artifacts
         uses: actions/download-artifact@v4
         with:
           path: soryos-apt/new-packages
           pattern: "deb-*"
           merge-multiple: true
 
+      - name: Skip publish when no packages were built
+        id: check
+        run: |
+          if compgen -G "soryos-apt/new-packages/*.deb" > /dev/null; then
+            echo "has_packages=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_packages=false" >> "$GITHUB_OUTPUT"
+            echo "No rebuilt .deb artifacts; skipping index merge."
+          fi
+
       - name: Update signed Release index
+        if: steps.check.outputs.has_packages == 'true'
         env:
           SORYOS_INDEX_PRIVATE_KEY_PEM: ${{ secrets.SORYOS_INDEX_PRIVATE_KEY_PEM }}
         run: |
@@ -202,6 +218,7 @@ jobs:
           rm -f index-signing-key.pem
 
       - name: Replace changed Release assets
+        if: steps.check.outputs.has_packages == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -217,6 +234,7 @@ jobs:
           done
 
       - name: Trigger Pages catalog publish
+        if: steps.check.outputs.has_packages == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

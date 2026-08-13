@@ -218,7 +218,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential devscripts debhelper dpkg-dev \
-            rustup pkg-config cmake just \
+            rustup pkg-config cmake \
             libwayland-dev libxkbcommon-dev libglib2.0-dev \
             libclang-dev libpipewire-0.3-dev libudev-dev \
             libinput-dev libgbm-dev libseat-dev libsystemd-dev \
@@ -227,9 +227,12 @@ jobs:
             libegl1-mesa-dev libxcb1-dev libdisplay-info-dev \
             libdav1d-dev libexpat1-dev \
             libflatpak-dev libpolkit-agent-1-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
             mold nasm \
             imagemagick fonts-open-sans meson patchelf b3sum jq
           rustup default stable
+          rustup toolchain install 1.93 --profile minimal
+          cargo install just --locked
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - name: Build component
