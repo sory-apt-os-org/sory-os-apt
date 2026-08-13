@@ -111,7 +111,9 @@ def rewrite_table_sections(text: str, cargo_file: Path, libcosmic: Path) -> str:
 
 
 PATCH_SOURCES = (
+    "https://github.com/pop-os/libcosmic",
     "https://github.com/pop-os/libcosmic.git",
+    "https://github.com/sory-os-org/libcosmic",
     "https://github.com/sory-os-org/libcosmic.git",
 )
 
