@@ -6,7 +6,7 @@ LOG_DIR="$ROOT_DIR/logs"
 LOG_FILE="$LOG_DIR/sign-repository.log"
 GNUPGHOME_DIR="${SORYOS_GNUPGHOME:-$ROOT_DIR/.private/gnupg}"
 KEY_EMAIL="${SORYOS_APT_KEY_EMAIL:-apt@soryos.local}"
-SUITES="${SORYOS_SUITES:-stable testing nightly}"
+SUITES="${SORYOS_SUITES:-stable}"
 
 mkdir -p "$LOG_DIR"
 : > "$LOG_FILE"

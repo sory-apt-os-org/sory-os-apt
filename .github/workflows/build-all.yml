@@ -256,8 +256,9 @@ jobs:
           cd soryos-apt
           mkdir -p pool/stable dists/stable/main/binary-amd64 keyrings release-out
           mv release-out/*.deb pool/stable/ 2>/dev/null || true
+          export SORYOS_SUITES=stable
           ./scripts/ci-import-signing-key.sh
-          SORYOS_SUITES=stable ./scripts/generate-index.sh
+          ./scripts/generate-index.sh
           ./scripts/sign-repository.sh
           cp keyrings/soryos-archive-keyring.gpg release-out/
           cp dists/stable/Release release-out/

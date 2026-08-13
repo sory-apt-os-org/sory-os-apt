@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$ROOT_DIR/logs"
 LOG_FILE="$LOG_DIR/generate-index.log"
-SUITES="${SORYOS_SUITES:-stable testing nightly}"
+SUITES="${SORYOS_SUITES:-stable}"
 
 mkdir -p "$LOG_DIR"
 : > "$LOG_FILE"
@@ -21,7 +21,8 @@ fi
 
 for suite in $SUITES; do
   INDEX_DIR="$ROOT_DIR/dists/$suite/main/binary-amd64"
-  mkdir -p "$INDEX_DIR"
+  POOL_DIR="$ROOT_DIR/pool/$suite"
+  mkdir -p "$INDEX_DIR" "$POOL_DIR"
 
   cd "$ROOT_DIR"
   dpkg-scanpackages -a amd64 "pool/$suite" /dev/null > "$INDEX_DIR/Packages" 2>> "$LOG_FILE"
