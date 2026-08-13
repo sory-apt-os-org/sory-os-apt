@@ -12,6 +12,17 @@ LIBCOSMIC_GIT = re.compile(
     r"https://github\.com/(?:pop-os|sory-os-org)/libcosmic(?:\.git)?/?"
 )
 
+SETTINGS_GIT = re.compile(
+    r"https://github\.com/pop-os/cosmic-settings(?:-daemon)?(?:\.git)?/?"
+)
+
+SETTINGS_CRATE_DIRS: dict[str, str] = {
+    "cosmic-settings-airplane-mode-subscription": "cosmic-settings/subscriptions/airplane-mode",
+    "cosmic-settings-upower-subscription": "cosmic-settings/subscriptions/upower",
+    "cosmic-settings-daemon-subscription": "cosmic-settings/subscriptions/settings-daemon",
+    "cosmic-settings-audio-client": "cosmic-settings-daemon/audio-client",
+}
+
 CRATE_DIRS: dict[str, str] = {
     "libcosmic": "",
     "cosmic-config": "cosmic-config",
@@ -32,21 +43,41 @@ def rel_path(cargo_file: Path, target: Path) -> str:
     return os.path.relpath(target, cargo_file.parent).replace("\\", "/")
 
 
-def strip_git_keys(inner: str) -> str:
-    inner = LIBCOSMIC_GIT.sub("", inner)
+def settings_dir(cosmic_epoch: Path, dep_name: str) -> Path | None:
+    sub = SETTINGS_CRATE_DIRS.get(dep_name)
+    if not sub:
+        return None
+    return cosmic_epoch / sub
+
+
+def strip_repo_git_keys(inner: str, *patterns: re.Pattern[str]) -> str:
+    for pattern in patterns:
+        inner = pattern.sub("", inner)
     inner = re.sub(r',?\s*(?:git|branch|rev|tag)\s*=\s*(?:"[^"]*"|\'[^\']*\')', "", inner)
     inner = re.sub(r",\s*,", ",", inner)
     return inner.strip().strip(",")
 
 
-def rewrite_inline_tables(text: str, cargo_file: Path, libcosmic: Path) -> str:
+def strip_git_keys(inner: str) -> str:
+    return strip_repo_git_keys(inner, LIBCOSMIC_GIT)
+
+
+def rewrite_inline_tables(
+    text: str, cargo_file: Path, libcosmic: Path, cosmic_epoch: Path
+) -> str:
     def repl(match: re.Match[str]) -> str:
         dep_name = match.group(1)
         inner = match.group(2)
-        if not LIBCOSMIC_GIT.search(inner):
+        if LIBCOSMIC_GIT.search(inner):
+            path = rel_path(cargo_file, crate_dir(libcosmic, dep_name))
+            rest = strip_repo_git_keys(inner, LIBCOSMIC_GIT)
+        elif SETTINGS_GIT.search(inner) and dep_name in SETTINGS_CRATE_DIRS:
+            target = settings_dir(cosmic_epoch, dep_name)
+            assert target is not None
+            path = rel_path(cargo_file, target)
+            rest = strip_repo_git_keys(inner, SETTINGS_GIT)
+        else:
             return match.group(0)
-        path = rel_path(cargo_file, crate_dir(libcosmic, dep_name))
-        rest = strip_git_keys(inner)
         if rest:
             return f'{dep_name} = {{ path = "{path}", {rest} }}'
         return f'{dep_name} = {{ path = "{path}" }}'
@@ -58,7 +89,9 @@ def rewrite_inline_tables(text: str, cargo_file: Path, libcosmic: Path) -> str:
     )
 
 
-def rewrite_table_sections(text: str, cargo_file: Path, libcosmic: Path) -> str:
+def rewrite_table_sections(
+    text: str, cargo_file: Path, libcosmic: Path, cosmic_epoch: Path
+) -> str:
     lines = text.splitlines()
     out: list[str] = []
     i = 0
@@ -81,11 +114,15 @@ def rewrite_table_sections(text: str, cargo_file: Path, libcosmic: Path) -> str:
             i += 1
 
         body = "\n".join(section)
-        if not LIBCOSMIC_GIT.search(body):
+        settings_target = settings_dir(cosmic_epoch, dep_name)
+        if LIBCOSMIC_GIT.search(body):
+            path = rel_path(cargo_file, crate_dir(libcosmic, dep_name))
+        elif SETTINGS_GIT.search(body) and settings_target is not None:
+            path = rel_path(cargo_file, settings_target)
+        else:
             out.extend(section)
             continue
 
-        path = rel_path(cargo_file, crate_dir(libcosmic, dep_name))
         new_section = [section[0]]
         skip_keys = {"git", "branch", "rev", "tag"}
         inserted_path = False
@@ -158,14 +195,15 @@ def ensure_libcosmic_patches(cargo_file: Path, libcosmic: Path) -> bool:
     return False
 
 
-def rewrite_file(cargo_file: Path, libcosmic: Path) -> bool:
+def rewrite_file(cargo_file: Path, libcosmic: Path, cosmic_epoch: Path) -> bool:
     original = cargo_file.read_text()
-    updated = rewrite_inline_tables(original, cargo_file, libcosmic)
-    updated = rewrite_table_sections(updated, cargo_file, libcosmic)
+    updated = rewrite_inline_tables(original, cargo_file, libcosmic, cosmic_epoch)
+    updated = rewrite_table_sections(updated, cargo_file, libcosmic, cosmic_epoch)
     changed = updated != original
     if changed:
         cargo_file.write_text(updated)
-    return changed or ensure_libcosmic_patches(cargo_file, libcosmic)
+    patched = ensure_libcosmic_patches(cargo_file, libcosmic)
+    return changed or patched
 
 
 def main() -> int:
@@ -187,7 +225,7 @@ def main() -> int:
     for cargo_file in cosmic_epoch.rglob("Cargo.toml"):
         if "target" in cargo_file.parts:
             continue
-        if rewrite_file(cargo_file, libcosmic):
+        if rewrite_file(cargo_file, libcosmic, cosmic_epoch):
             changed += 1
 
     for lock_file in cosmic_epoch.rglob("Cargo.lock"):
