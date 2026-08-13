@@ -23,7 +23,6 @@ SETTINGS_CRATE_DIRS: dict[str, str] = {
     "cosmic-settings-audio-client": "cosmic-settings-daemon/audio-client",
     "cosmic-settings-accessibility-subscription": "cosmic-settings/subscriptions/accessibility",
     "cosmic-settings-a11y-manager-subscription": "cosmic-settings/subscriptions/a11y-manager",
-    "cosmic-settings-network-manager-subscription": "cosmic-settings/subscriptions/network-manager",
     "cosmic-settings-bluetooth-subscription": "cosmic-settings/subscriptions/bluetooth",
 }
 
@@ -33,9 +32,15 @@ EPOCH_CRATE_DIRS: dict[str, str] = {
     "cosmic-panel-config": "cosmic-panel/cosmic-panel-config",
     "cosmic-notifications-util": "cosmic-notifications/util",
     "cosmic-notifications-config": "cosmic-notifications/config",
-    "cosmic-randr-shell": "cosmic-randr/cosmic-randr-shell",
+    "cosmic-randr": "cosmic-randr/lib",
+    "cosmic-randr-shell": "cosmic-randr/shell",
+    "cosmic-settings-config": "cosmic-settings-daemon/config",
+    "cosmic-app-list-config": "cosmic-applets/cosmic-app-list/cosmic-app-list-config",
+    "cosmic-applets-config": "cosmic-applets/cosmic-applets-config",
     "cosmic-client-toolkit": "cosmic-protocols/client-toolkit",
     "cctk": "cosmic-protocols/client-toolkit",
+    "freedesktop-icons": "freedesktop-icons",
+    "cosmic-freedesktop-icons": "freedesktop-icons",
 }
 
 DBUS_SETTINGS_GIT = re.compile(
@@ -57,7 +62,13 @@ DBUS_SETTINGS_CRATE_DIRS: dict[str, str] = {
     "geoclue2": "dbus-settings-bindings/geoclue2",
 }
 
-VIRTUAL_EPOCH_REPOS = frozenset({"dbus-settings-bindings"})
+VIRTUAL_EPOCH_REPOS = frozenset(
+    {"dbus-settings-bindings", "cosmic-randr", "cosmic-applets", "cosmic-settings-daemon"}
+)
+
+FREEDESKTOP_ICONS_GIT = re.compile(
+    r"https://github\.com/pop-os/freedesktop-icons(?:\.git)?"
+)
 
 POP_OS_EPOCH_GIT = re.compile(
     r"https://github\.com/pop-os/([A-Za-z0-9_-]+)(?:\.git)?"
@@ -88,7 +99,10 @@ def epoch_crate_dir(cosmic_epoch: Path, dep_name: str, inner: str) -> Path | Non
     if dep_name in EPOCH_CRATE_DIRS:
         return cosmic_epoch / EPOCH_CRATE_DIRS[dep_name]
     if dep_name in SETTINGS_CRATE_DIRS:
-        return cosmic_epoch / SETTINGS_CRATE_DIRS[dep_name]
+        target = cosmic_epoch / SETTINGS_CRATE_DIRS[dep_name]
+        return target if target.is_dir() else None
+    if FREEDESKTOP_ICONS_GIT.search(inner):
+        return cosmic_epoch / "freedesktop-icons"
     if DBUS_SETTINGS_GIT.search(inner):
         sub = DBUS_SETTINGS_CRATE_DIRS.get(dep_name)
         if not sub:
@@ -140,17 +154,20 @@ def rewrite_inline_tables(
             rest = strip_repo_git_keys(inner, LIBCOSMIC_GIT)
         elif SETTINGS_GIT.search(inner) and dep_name in SETTINGS_CRATE_DIRS:
             target = settings_dir(cosmic_epoch, dep_name)
-            assert target is not None
+            if target is None or not target.is_dir():
+                return match.group(0)
             path = rel_path(cargo_file, target)
             rest = strip_repo_git_keys(inner, SETTINGS_GIT)
-        elif POP_OS_EPOCH_GIT.search(inner) or SETTINGS_GIT.search(inner) or DBUS_SETTINGS_GIT.search(inner):
+        elif POP_OS_EPOCH_GIT.search(inner) or SETTINGS_GIT.search(inner) or DBUS_SETTINGS_GIT.search(inner) or FREEDESKTOP_ICONS_GIT.search(inner):
             target = epoch_crate_dir(cosmic_epoch, dep_name, inner)
             if target is None and SETTINGS_GIT.search(inner):
                 target = settings_dir(cosmic_epoch, dep_name)
             if target is None or not target.is_dir():
                 return match.group(0)
             path = rel_path(cargo_file, target)
-            rest = strip_repo_git_keys(inner, POP_OS_EPOCH_GIT, SETTINGS_GIT, DBUS_SETTINGS_GIT)
+            rest = strip_repo_git_keys(
+                inner, POP_OS_EPOCH_GIT, SETTINGS_GIT, DBUS_SETTINGS_GIT, FREEDESKTOP_ICONS_GIT
+            )
         else:
             return match.group(0)
         if rest:
@@ -294,10 +311,70 @@ def ensure_libcosmic_patches(cargo_file: Path, libcosmic: Path) -> bool:
     return False
 
 
+def fix_workspace_path_deps(
+    text: str, cargo_file: Path, cosmic_epoch: Path
+) -> str:
+    def repl(match: re.Match[str]) -> str:
+        dep_name = match.group(1)
+        inner = match.group(2)
+        sub = EPOCH_CRATE_DIRS.get(dep_name)
+        if not sub or "path = " not in inner:
+            return match.group(0)
+        target = cosmic_epoch / sub
+        if not target.is_dir():
+            return match.group(0)
+        path = rel_path(cargo_file, target)
+        inner = re.sub(r'path\s*=\s*"[^"]*"', f'path = "{path}"', inner)
+        return f"{dep_name} = {{ {inner.strip()} }}"
+
+    return re.sub(
+        r"(?m)^([A-Za-z0-9_-]+)\s*=\s*\{([^}]*)\}\s*$",
+        repl,
+        text,
+    )
+
+
+def fix_workspace_table_sections(
+    text: str, cargo_file: Path, cosmic_epoch: Path
+) -> str:
+    lines = text.splitlines()
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        header = re.match(
+            r"^\[(?:workspace\.dependencies|dependencies|dev-dependencies|build-dependencies)\.([A-Za-z0-9_-]+)\]\s*$",
+            line,
+        )
+        if not header:
+            out.append(line)
+            i += 1
+            continue
+
+        dep_name = header.group(1)
+        sub = EPOCH_CRATE_DIRS.get(dep_name)
+        section = [line]
+        i += 1
+        while i < len(lines) and not lines[i].startswith("["):
+            body_line = lines[i]
+            if sub and re.match(r"^\s*path\s*=", body_line):
+                target = cosmic_epoch / sub
+                if target.is_dir():
+                    indent = re.match(r"^(\s*)", body_line).group(1)
+                    path = rel_path(cargo_file, target)
+                    body_line = f'{indent}path = "{path}"'
+            section.append(body_line)
+            i += 1
+        out.extend(section)
+    return "\n".join(out)
+
+
 def rewrite_file(cargo_file: Path, libcosmic: Path, cosmic_epoch: Path) -> bool:
     original = cargo_file.read_text()
     updated = rewrite_inline_tables(original, cargo_file, libcosmic, cosmic_epoch)
     updated = rewrite_table_sections(updated, cargo_file, libcosmic, cosmic_epoch)
+    updated = fix_workspace_path_deps(updated, cargo_file, cosmic_epoch)
+    updated = fix_workspace_table_sections(updated, cargo_file, cosmic_epoch)
     changed = updated != original
     if changed:
         cargo_file.write_text(updated)

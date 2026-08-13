@@ -237,6 +237,9 @@ jobs:
 
       - name: Build component
         id: build
+        env:
+          SOURCE_GIT_HASH: ""
+          SOURCE_DATE_EPOCH: ""
         run: |
           set -e
           cd "$SORYOS_COSMIC_WORK/cosmic-epoch"
