@@ -48,6 +48,19 @@ sync_repo "$LIBCOSMIC_REPO" "$LIBCOSMIC_REF" "$WORK_DIR/libcosmic"
 
 git -C "$WORK_DIR/cosmic-epoch" submodule update --init --recursive
 
+# network-manager subscription is required by cosmic-initial-setup but not yet on pop-os master.
+NM_DEST="$WORK_DIR/cosmic-epoch/cosmic-settings/subscriptions/network-manager"
+if [[ ! -f "$NM_DEST/Cargo.toml" ]]; then
+  mkdir -p "$(dirname "$NM_DEST")"
+  NM_VENDOR="$WORK_DIR/.cosmic-settings-nm-vendor"
+  rm -rf "$NM_VENDOR"
+  git clone --depth 1 --filter=blob:none --sparse \
+    https://github.com/Rahul-2k4/cosmic-settings.git "$NM_VENDOR"
+  git -C "$NM_VENDOR" sparse-checkout set subscriptions/network-manager
+  cp -a "$NM_VENDOR/subscriptions/network-manager" "$NM_DEST"
+  rm -rf "$NM_VENDOR"
+fi
+
 # External pop-os repos referenced via path rewrites (not submodules of cosmic-epoch).
 for ext_repo in cosmic-protocols dbus-settings-bindings freedesktop-icons; do
   sync_repo "https://github.com/pop-os/${ext_repo}.git" main "$WORK_DIR/cosmic-epoch/${ext_repo}"

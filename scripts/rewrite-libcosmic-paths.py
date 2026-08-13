@@ -35,6 +35,8 @@ EPOCH_CRATE_DIRS: dict[str, str] = {
     "cosmic-randr": "cosmic-randr/lib",
     "cosmic-randr-shell": "cosmic-randr/shell",
     "cosmic-settings-config": "cosmic-settings-daemon/config",
+    "cosmic-idle-config": "cosmic-idle/cosmic-idle-config",
+    "cosmic-settings-network-manager-subscription": "cosmic-settings/subscriptions/network-manager",
     "cosmic-app-list-config": "cosmic-applets/cosmic-app-list/cosmic-app-list-config",
     "cosmic-applets-config": "cosmic-applets/cosmic-applets-config",
     "cosmic-client-toolkit": "cosmic-protocols/client-toolkit",
@@ -63,7 +65,13 @@ DBUS_SETTINGS_CRATE_DIRS: dict[str, str] = {
 }
 
 VIRTUAL_EPOCH_REPOS = frozenset(
-    {"dbus-settings-bindings", "cosmic-randr", "cosmic-applets", "cosmic-settings-daemon"}
+    {
+        "dbus-settings-bindings",
+        "cosmic-randr",
+        "cosmic-applets",
+        "cosmic-settings-daemon",
+        "cosmic-settings",
+    }
 )
 
 FREEDESKTOP_ICONS_GIT = re.compile(

@@ -20,4 +20,9 @@ if [[ -f "$portal_justfile" ]]; then
   sed -i 's/\${SOURCE_GIT_HASH}/\${SOURCE_GIT_HASH:-}/g' "$portal_justfile"
 fi
 
+greeter_common="$ROOT/cosmic-greeter/src/common.rs"
+if [[ -f "$greeter_common" ]]; then
+  sed -i 's/return blur(id, Some(rects))\.discard();/return blur::<M>(id, Some(rects)).discard();/' "$greeter_common"
+fi
+
 printf 'applied CI compatibility patches under %s\n' "$ROOT"
