@@ -3,7 +3,7 @@
 Ce document liste **tout ce qui doit être compilé sur les runners GitHub Actions**
 et **ce qui peut (ou doit) être fait sur un PC de développement** avec RAM limitée.
 
-Sources COSMIC : `github.com/sory-os-org/cosmic-epch` + `github.com/sory-os-org/libcosmic` + `github.com/sory-os-org/cosmic-sory-ia`
+Sources COSMIC : `github.com/sory-os-org/cosmic-epoch` + `github.com/sory-os-org/libcosmic` + `github.com/sory-os-org/cosmic-sory-ia`
 (via `scripts/prepare-cosmic-sources.sh`, modèle recettes Redox).
 
 ---

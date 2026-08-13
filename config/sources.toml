@@ -2,7 +2,7 @@
 # CI clones these; local ISO build must NOT compile from them.
 
 [cosmic_epoch]
-git = "https://github.com/sory-os-org/cosmic-epch.git"
+git = "https://github.com/sory-os-org/cosmic-epoch.git"
 branch = "main"
 
 [libcosmic]

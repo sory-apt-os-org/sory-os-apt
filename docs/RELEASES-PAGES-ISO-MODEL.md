@@ -43,7 +43,7 @@ make DISTRO_CODE=soryos DISTRO_VERSION=24.04 SORYOS_RELEASE_TAG='<tag>'
 | Élément | modules-sory-os | sory-os/sory-os-apt |
 |---------|-----------------|---------------------|
 | Format binaire | `.pkgar` | `.deb` |
-| Sources CI | `gitlab.com/sory-os/cosmic-epoch` via recettes Redox | `github.com/sory-os-org/cosmic-epch` via `prepare-cosmic-sources.sh` |
+| Sources CI | `gitlab.com/sory-os/cosmic-epoch` via recettes Redox | `github.com/sory-os-org/cosmic-epoch` via `prepare-cosmic-sources.sh` |
 | Consommateur ISO | `redox` + `REPO_BINARY=1` | `iso` + `download-release-pool.sh` |
 
 Voir `docs/LOCAL-BUILD-POLICY.md` pour la liste complète local vs CI.

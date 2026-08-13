@@ -3,7 +3,7 @@
   "pages_base_url": "https://sory-os-org.github.io/sory-os-apt",
   "sources": {
     "cosmic_epoch": {
-      "git": "https://github.com/sory-os-org/cosmic-epch.git",
+      "git": "https://github.com/sory-os-org/cosmic-epoch.git",
       "branch": "main",
       "layout": "monorepo with libcosmic sibling (redox recipe model)"
     },

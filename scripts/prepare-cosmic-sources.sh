@@ -10,7 +10,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 WORK_DIR="$(cd "$1" && pwd)"
-COSMIC_EPOCH_REPO="${SORYOS_COSMIC_EPOCH_REPO:-https://github.com/sory-os-org/cosmic-epch.git}"
+COSMIC_EPOCH_REPO="${SORYOS_COSMIC_EPOCH_REPO:-https://github.com/sory-os-org/cosmic-epoch.git}"
 COSMIC_EPOCH_REF="${SORYOS_COSMIC_EPOCH_REF:-main}"
 LIBCOSMIC_REPO="${SORYOS_LIBCOSMIC_REPO:-https://github.com/sory-os-org/libcosmic.git}"
 LIBCOSMIC_REF="${SORYOS_LIBCOSMIC_REF:-main}"
