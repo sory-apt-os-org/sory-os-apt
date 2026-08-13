@@ -18,9 +18,13 @@ concurrency:
   group: update-deb-release-soryos
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   DEBIAN_FRONTEND: noninteractive
+  GITHUB_TOKEN: ${{ github.token }}
   SORYOS_APT_REPO: sory-os-org/sory-os-apt
   SORYOS_COSMIC_EPOCH_REPO: https://github.com/sory-os-org/cosmic-epoch.git
   SORYOS_COSMIC_EPOCH_REF: main
