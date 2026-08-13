@@ -9,6 +9,7 @@ if [[ $# -lt 1 ]]; then
   exit 2
 fi
 
+mkdir -p "$1"
 WORK_DIR="$(cd "$1" && pwd)"
 COSMIC_EPOCH_REPO="${SORYOS_COSMIC_EPOCH_REPO:-https://github.com/sory-os-org/cosmic-epoch.git}"
 COSMIC_EPOCH_REF="${SORYOS_COSMIC_EPOCH_REF:-main}"
@@ -23,8 +24,6 @@ require_tool() {
 }
 
 require_tool git
-
-mkdir -p "$WORK_DIR"
 
 sync_repo() {
   local url="$1"
