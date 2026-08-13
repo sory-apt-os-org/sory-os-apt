@@ -110,14 +110,60 @@ def rewrite_table_sections(text: str, cargo_file: Path, libcosmic: Path) -> str:
     return "\n".join(out)
 
 
-def rewrite_file(cargo_file: Path, libcosmic: Path) -> bool:
+PATCH_SOURCES = (
+    "https://github.com/pop-os/libcosmic.git",
+    "https://github.com/sory-os-org/libcosmic.git",
+)
+
+PATCH_SECTION_RE = re.compile(
+    r"\n\[patch\.'[^']*libcosmic[^']*'\](?:\n(?!#*\[).*)*",
+    re.MULTILINE,
+)
+
+
+def needs_libcosmic_patches(text: str) -> bool:
+    return "libcosmic" in text and (
+        LIBCOSMIC_GIT.search(text) is not None
+        or "/libcosmic" in text
+        or "pop-os/cosmic-settings" in text
+    )
+
+
+def remove_libcosmic_patch_sections(text: str) -> str:
+    return PATCH_SECTION_RE.sub("", text)
+
+
+def patch_block(cargo_file: Path, libcosmic: Path, source_url: str) -> str:
+    lines = [f"[patch.'{source_url}']"]
+    for crate, sub in CRATE_DIRS.items():
+        target = libcosmic / sub if sub else libcosmic
+        path = rel_path(cargo_file, target)
+        lines.append(f'{crate} = {{ path = "{path}" }}')
+    return "\n".join(lines)
+
+
+def ensure_libcosmic_patches(cargo_file: Path, libcosmic: Path) -> bool:
     original = cargo_file.read_text()
-    updated = rewrite_inline_tables(original, cargo_file, libcosmic)
-    updated = rewrite_table_sections(updated, cargo_file, libcosmic)
+    if not needs_libcosmic_patches(original):
+        return False
+
+    updated = remove_libcosmic_patch_sections(original).rstrip()
+    blocks = [patch_block(cargo_file, libcosmic, url) for url in PATCH_SOURCES]
+    updated = updated + "\n\n" + "\n\n".join(blocks) + "\n"
     if updated != original:
         cargo_file.write_text(updated)
         return True
     return False
+
+
+def rewrite_file(cargo_file: Path, libcosmic: Path) -> bool:
+    original = cargo_file.read_text()
+    updated = rewrite_inline_tables(original, cargo_file, libcosmic)
+    updated = rewrite_table_sections(updated, cargo_file, libcosmic)
+    changed = updated != original
+    if changed:
+        cargo_file.write_text(updated)
+    return changed or ensure_libcosmic_patches(cargo_file, libcosmic)
 
 
 def main() -> int:
