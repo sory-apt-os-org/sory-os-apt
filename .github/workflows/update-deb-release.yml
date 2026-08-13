@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       components:
-        description: 'Changed components to rebuild (space-separated)'
+        description: 'Changed components to rebuild (space-separated, or "all")'
         required: true
       release_tag:
         description: 'Existing immutable Release tag to update in place'
@@ -33,13 +33,51 @@ env:
   SORYOS_COSMIC_WORK: /tmp/soryos-sources
 
 jobs:
+  prepare:
+    name: Parse component list
+    runs-on: ubuntu-latest
+    outputs:
+      components_json: ${{ steps.parse.outputs.components_json }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Resolve components
+        id: parse
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          manifest = json.load(open("soryos-apt/cosmic-apps/manifest.json"))
+          all_components = sorted(
+              {c["name"] for c in manifest["components"] if c.get("has_debian")}
+              | {"cosmic-sound-theme"}
+          )
+          requested = os.environ["INPUT_COMPONENTS"].strip()
+          if requested == "all":
+              selected = all_components
+          else:
+              selected = requested.split()
+              unknown = sorted(set(selected) - set(all_components))
+              if unknown:
+                  raise SystemExit(f"Unknown component(s): {', '.join(unknown)}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"components_json={json.dumps(selected)}\n")
+          PY
+        env:
+          INPUT_COMPONENTS: ${{ inputs.components }}
+
   build:
-    name: Rebuild changed components
+    name: ${{ matrix.component }}
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        component: ${{ fromJson(format('["{0}"]', join('","', split(inputs.components, ' ')))) }}
+        component: ${{ fromJson(needs.prepare.outputs.components_json) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,13 +109,33 @@ jobs:
         id: build
         run: |
           set -e
-          cd "$SORYOS_COSMIC_WORK/cosmic-epoch/${{ matrix.component }}"
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch"
+          if [ "${{ matrix.component }}" = "cosmic-sound-theme" ]; then
+            cd cosmic-sound-theme
+            VERSION=$(grep "version:" meson.build | head -1 | sed "s/.*version: '*//;s/'*,//;s/[' ]//g")
+            PKGDIR="/tmp/pkg/cosmic-sound-theme"
+            rm -rf "$PKGDIR"
+            mkdir -p "$PKGDIR/DEBIAN"
+            printf '%s\n' \
+              'Package: cosmic-sound-theme' \
+              "Version: ${VERSION}" \
+              'Section: sound' \
+              'Priority: optional' \
+              'Architecture: all' \
+              'Maintainer: SoryOS Maintainers <maintainers@soryos.local>' \
+              'Description: COSMIC Sound Theme' \
+              > "$PKGDIR/DEBIAN/control"
+            meson setup build --prefix=/usr
+            DESTDIR="$PKGDIR" meson install -C build
+            dpkg-deb --build "$PKGDIR" "../cosmic-sound-theme_${VERSION}_all.deb"
+            echo "no_deb=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cd "${{ matrix.component }}"
           if [ ! -f debian/control ]; then
             echo "no_deb=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          SOURCE=$(grep '^Source:' debian/control | sed 's/Source: //')
-          echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
           dpkg-buildpackage -us -uc -b -d
           echo "no_deb=false" >> "$GITHUB_OUTPUT"
 
@@ -86,7 +144,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: deb-${{ matrix.component }}
-          path: ${{ env.SORYOS_COSMIC_WORK }}/cosmic-epoch/${{ steps.build.outputs.source }}_*.deb
+          path: ${{ env.SORYOS_COSMIC_WORK }}/cosmic-epoch/*.deb
           retention-days: 2
 
   publish:
@@ -95,6 +153,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -156,3 +215,11 @@ jobs:
             [[ -f "$deb" ]] || continue
             gh release upload "$TAG" "$deb" --repo "${{ env.SORYOS_APT_REPO }}" --clobber
           done
+
+      - name: Trigger Pages catalog publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run publish-pages.yml \
+            --repo "${{ env.SORYOS_APT_REPO }}" \
+            -f release_tag="${{ inputs.release_tag }}"
