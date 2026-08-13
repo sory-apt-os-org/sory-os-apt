@@ -25,4 +25,14 @@ if [[ -f "$greeter_common" ]]; then
   sed -i 's/return blur(id, Some(rects))\.discard();/return blur::<M>(id, Some(rects)).discard();/' "$greeter_common"
 fi
 
+workspaces_main="$ROOT/cosmic-workspaces-epoch/src/main.rs"
+if [[ -f "$workspaces_main" ]]; then
+  sed -i 's/commands::blur::blur(/commands::blur::blur::<Msg>(/g' "$workspaces_main"
+fi
+
+wifi_page="$ROOT/cosmic-initial-setup/src/page/wifi.rs"
+if [[ -f "$wifi_page" ]]; then
+  sed -i 's/Container::Dialog(true)/Container::Dialog/g' "$wifi_page"
+fi
+
 printf 'applied CI compatibility patches under %s\n' "$ROOT"
