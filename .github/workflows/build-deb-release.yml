@@ -1,0 +1,416 @@
+# =============================================================================
+# SoryOS - Build COSMIC + integration packages as .deb and publish to GitHub Release
+# =============================================================================
+# Mirrors the Redox pkgar workflow (build-cosmic.yml) but produces Debian
+# packages instead of native .pkgar binaries.
+#
+# Publication model (see redox/docs-plans/PLAN-INDEX-PAGES-RELEASES-SIGNE.md):
+#   GitHub Release = .deb binaries + signed index.json
+#   GitHub Pages   = NOT used for package storage
+# =============================================================================
+
+name: Build SoryOS Debian Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      components:
+        description: 'Components to build (space-separated, or "all")'
+        required: false
+        default: 'all'
+      force_rebuild:
+        description: 'Force rebuild all selected components'
+        required: false
+        type: boolean
+        default: false
+      tag:
+        description: 'Immutable GitHub Release tag, for example soryos-deb-2026.08.12'
+        required: true
+      release_binary:
+        description: 'Copy unchanged .deb from base release (1) or rebuild all selected (0)'
+        required: false
+        default: '1'
+      base_release_tag:
+        description: 'Existing SoryOS deb Release used as binary cache'
+        required: false
+        default: 'soryos-deb-2026.08.07-desktop-full'
+
+env:
+  CARGO_TERM_COLOR: always
+  DEBIAN_FRONTEND: noninteractive
+  SORYOS_APT_REPO: sory-os-org/sory-os-apt
+  SORYOS_COSMIC_EPOCH_REPO: https://github.com/sory-os-org/cosmic-epch.git
+  SORYOS_COSMIC_EPOCH_REF: main
+  SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
+  SORYOS_LIBCOSMIC_REF: main
+  SORYOS_COSMIC_WORK: ${{ runner.temp }}/soryos-sources
+
+jobs:
+  detect-changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.detect.outputs.components }}
+      components_json: ${{ steps.detect.outputs.components_json }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Prepare cosmic sources (GitLab recipes)
+        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
+
+      - name: Detect component changes
+        id: detect
+        run: |
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch"
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+
+          manifest = json.load(open(os.environ["GITHUB_WORKSPACE"] + "/soryos-apt/cosmic-apps/manifest.json"))
+          all_components = [c["name"] for c in manifest["components"] if c.get("has_debian")]
+          all_components.append("cosmic-sound-theme")
+          all_components = sorted(set(all_components))
+          requested = "${{ inputs.components }}".strip()
+          if requested == "all":
+              selected = all_components
+          else:
+              selected = requested.split()
+              unknown = sorted(set(selected) - set(all_components))
+              if unknown:
+                  raise SystemExit(f"Unknown component(s): {', '.join(unknown)}")
+
+          base_tag = "${{ inputs.base_release_tag }}"
+          repo = "${{ env.SORYOS_APT_REPO }}"
+          index_url = f"https://github.com/{repo}/releases/download/{base_tag}/index.json"
+          release_index = {}
+          try:
+              with urllib.request.urlopen(index_url, timeout=60) as resp:
+                  release_index = json.load(resp)
+          except Exception:
+              release_index = {}
+
+          def pool_version(component):
+              control = f"{component}/debian/control"
+              if os.path.isfile(f"{component}/Cargo.toml"):
+                  with open(f"{component}/Cargo.toml", encoding="utf-8") as fh:
+                      for line in fh:
+                          if line.startswith("version"):
+                              return line.split("=", 1)[1].strip().strip('"')
+              if os.path.isfile(control):
+                  with open(control, encoding="utf-8") as fh:
+                      for line in fh:
+                          if line.startswith("Source:"):
+                              source = line.split(":", 1)[1].strip()
+                              break
+                      else:
+                          source = component
+              else:
+                  source = component
+              for asset in release_index.get("assets", []):
+                  name = asset.get("name", "")
+                  m = re.match(rf"^{re.escape(source)}_(.+)_(?:amd64|all)\.deb$", name)
+                  if m:
+                      return m.group(1)
+              return "none"
+
+          changed = []
+          for component in selected:
+              if "${{ inputs.force_rebuild }}" == "true":
+                  changed.append(component)
+                  continue
+              if "${{ inputs.release_binary }}" != "1":
+                  changed.append(component)
+                  continue
+              src_ver = pool_version(component)
+              pkg = None
+              control = f"{component}/debian/control"
+              if os.path.isfile(control):
+                  with open(control, encoding="utf-8") as fh:
+                      pkg = next((line.split(":", 1)[1].strip() for line in fh if line.startswith("Source:")), component)
+              else:
+                  pkg = component
+              indexed = release_index.get("packages", {}).get(pkg, {}).get("deb")
+              if not indexed:
+                  changed.append(component)
+                  continue
+              indexed_ver = re.sub(rf"^{re.escape(pkg)}_(.+)_(?:amd64|all)\.deb$", r"\1", indexed["name"])
+              if src_ver == "none" or src_ver != indexed_ver:
+                  changed.append(component)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"components_json={json.dumps(changed)}\n")
+              if changed:
+                  out.write(f"components={' '.join(changed)}\n")
+                  out.write("has_changes=true\n")
+              else:
+                  out.write("components=\n")
+                  out.write("has_changes=false\n")
+          PY
+
+  build-integration:
+    name: Integration packages
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Prepare cosmic sources (GitLab recipes)
+        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
+
+      - name: Build integration .deb packages
+        env:
+          SORYOS_COSMIC_EPOCH_DIR: ${{ env.SORYOS_COSMIC_WORK }}/cosmic-epoch
+        run: |
+          cd soryos-apt
+          mkdir -p release-out/pool/stable
+          ./scripts/build-packages.sh
+          cp pool/stable/*.deb release-out/pool/stable/
+
+      - name: Upload integration debs
+        uses: actions/upload-artifact@v4
+        with:
+          name: debs-integration
+          path: soryos-apt/release-out/pool/stable/*.deb
+          retention-days: 2
+
+  build-cosmic:
+    name: ${{ matrix.component }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true' && needs.detect-changes.outputs.components != ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJson(needs.detect-changes.outputs.components_json) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Prepare cosmic sources (GitLab recipes)
+        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-deb-${{ matrix.component }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-deb-
+            ${{ runner.os }}-cargo-
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential devscripts debhelper dpkg-dev \
+            cargo rustup pkg-config cmake just \
+            libwayland-dev libxkbcommon-dev libglib2.0-dev \
+            libclang-dev libpipewire-0.3-dev libudev-dev \
+            libinput-dev libgbm-dev libseat-dev libsystemd-dev \
+            libdbus-1-dev libpam0g-dev libssl-dev libzstd-dev \
+            libpixman-1-dev libfontconfig-dev libfreetype-dev \
+            libegl1-mesa-dev libxcb1-dev libdisplay-info-dev \
+            libdav1d-dev libexpat1-dev \
+            libflatpak-dev libpolkit-agent-1-dev \
+            imagemagick fonts-open-sans meson patchelf b3sum jq
+
+      - name: Build component
+        id: build
+        run: |
+          set -e
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch"
+          if [ "${{ matrix.component }}" = "cosmic-sound-theme" ]; then
+            cd cosmic-sound-theme
+            VERSION=$(grep "version:" meson.build | head -1 | sed "s/.*version: '*//;s/'*,//;s/[' ]//g")
+            PKGDIR="/tmp/pkg/cosmic-sound-theme"
+            rm -rf "$PKGDIR"
+            mkdir -p "$PKGDIR/DEBIAN"
+            cat > "$PKGDIR/DEBIAN/control" <<CTRL
+Package: cosmic-sound-theme
+Version: $VERSION
+Section: sound
+Priority: optional
+Architecture: all
+Maintainer: SoryOS Maintainers <maintainers@soryos.local>
+Description: COSMIC Sound Theme
+ Sound theme for the COSMIC desktop environment.
+CTRL
+            meson setup build --prefix=/usr --destdir="$PKGDIR"
+            meson install -C build
+            dpkg-deb --build "$PKGDIR" "../cosmic-sound-theme_${VERSION}_all.deb"
+            echo "source=cosmic-sound-theme" >> "$GITHUB_OUTPUT"
+            echo "no_deb=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cd "${{ matrix.component }}"
+          if [ ! -f debian/control ]; then
+            echo "no_deb=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          SOURCE=$(grep '^Source:' debian/control | sed 's/Source: //')
+          echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
+          dpkg-buildpackage -us -uc -b
+          echo "no_deb=false" >> "$GITHUB_OUTPUT"
+
+      - name: Upload .deb artifact
+        if: steps.build.outputs.no_deb != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.component }}
+          path: ${{ env.SORYOS_COSMIC_WORK }}/cosmic-epoch/${{ steps.build.outputs.source }}_*.deb
+          retention-days: 2
+
+  publish:
+    name: Publish immutable GitHub Release
+    needs: [detect-changes, build-integration, build-cosmic]
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Install publishing tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils dpkg-dev gnupg gzip b3sum jq
+
+      - name: Download built .deb artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: soryos-apt/release-out/pool/stable
+          pattern: "deb-*"
+          merge-multiple: true
+
+      - name: Download integration .deb artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: soryos-apt/release-out/pool/stable
+          pattern: "debs-integration"
+          merge-multiple: true
+
+      - name: Copy unchanged packages from base release
+        if: inputs.release_binary == '1'
+        env:
+          BASE_TAG: ${{ inputs.base_release_tag }}
+        run: |
+          cd soryos-apt
+          INDEX_URL="https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${BASE_TAG}/index.json"
+          mkdir -p release-out/pool/stable
+          curl -fsSL "$INDEX_URL" -o /tmp/base-index.json
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import subprocess
+          import urllib.request
+
+          repo = "${{ env.SORYOS_APT_REPO }}"
+          base_tag = "${{ inputs.base_release_tag }}"
+          changed = "${{ needs.detect-changes.outputs.components }}".split()
+          index = json.load(open("/tmp/base-index.json"))
+          out = pathlib.Path("release-out/pool/stable")
+          for package, files in index.get("packages", {}).items():
+              deb = files.get("deb")
+              if not deb or package in changed:
+                  continue
+              dest = out / deb["name"]
+              if dest.exists():
+                  continue
+              url = deb["url"]
+              print(f"copy unchanged {deb['name']}")
+              subprocess.check_call(["curl", "-fsSL", url, "-o", str(dest)])
+          PY
+
+      - name: Generate APT metadata and signing key export
+        env:
+          SORYOS_GPG_PRIVATE_KEY: ${{ secrets.SORYOS_GPG_PRIVATE_KEY }}
+          SORYOS_INDEX_PRIVATE_KEY_PEM: ${{ secrets.SORYOS_INDEX_PRIVATE_KEY_PEM }}
+        run: |
+          cd soryos-apt
+          mkdir -p pool/stable dists/stable/main/binary-amd64 keyrings release-out
+          cp release-out/pool/stable/*.deb pool/stable/
+          ./scripts/ci-import-signing-key.sh
+          SORYOS_SUITES=stable ./scripts/generate-index.sh
+          ./scripts/sign-repository.sh
+          cp keyrings/soryos-archive-keyring.gpg release-out/
+          cp dists/stable/Release release-out/
+          cp dists/stable/Release.gpg release-out/
+          cp dists/stable/InRelease release-out/
+          cp dists/stable/main/binary-amd64/Packages release-out/
+          cp dists/stable/main/binary-amd64/Packages.gz release-out/
+          cp pool/stable/*.deb release-out/
+          python3 scripts/generate-release-index.py \
+            release-out \
+            "${{ inputs.tag }}" \
+            "${{ env.SORYOS_APT_REPO }}" \
+            release-out/index.json \
+            "https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${{ inputs.tag }}" \
+            release-out/soryos-archive-keyring.gpg
+          test -n "${SORYOS_INDEX_PRIVATE_KEY_PEM:-}" || {
+            echo "Missing SORYOS_INDEX_PRIVATE_KEY_PEM GitHub secret" >&2
+            exit 1
+          }
+          umask 077
+          printf '%s\n' "$SORYOS_INDEX_PRIVATE_KEY_PEM" > index-signing-key.pem
+          ./scripts/sign-release-index.sh release-out/index.json index-signing-key.pem
+          openssl pkey -in index-signing-key.pem -pubout \
+            -out release-out/index-signing-key.pub.pem
+          openssl pkey -pubin -in release-out/index-signing-key.pub.pem \
+            -outform DER | tail -c 32 | od -An -tx1 -v | tr -d ' \n' \
+            > release-out/index-signing-key.pub.hex
+          rm -f index-signing-key.pem
+
+      - name: Ensure immutable Release tag is unused
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ inputs.tag }}" --repo "${{ env.SORYOS_APT_REPO }}" >/dev/null 2>&1; then
+            echo "Release tag already exists; refusing to overwrite immutable artifacts" >&2
+            exit 1
+          fi
+
+      - name: Upload Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd soryos-apt/release-out
+          gh release create "${{ inputs.tag }}" \
+            --repo "${{ env.SORYOS_APT_REPO }}" \
+            --title "SoryOS Debian packages (${{ inputs.tag }})" \
+            --notes "Immutable SoryOS .deb Release. Binary packages are stored here; GitHub Pages is not used for package hosting."
+          while IFS= read -r -d '' asset; do
+            uploaded=false
+            for attempt in 1 2 3 4 5; do
+              if gh release upload "${{ inputs.tag }}" "$asset" --repo "${{ env.SORYOS_APT_REPO }}"; then
+                uploaded=true
+                break
+              fi
+              sleep $((attempt * 10))
+            done
+            if [[ "$uploaded" != true ]]; then
+              echo "Unable to upload Release asset: $asset" >&2
+              exit 1
+            fi
+            sleep 1
+          done < <(find . -maxdepth 1 -type f -print0 | sort -z)
+
+      - name: Trigger Pages catalog publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run publish-pages.yml \
+            --repo "${{ env.SORYOS_APT_REPO }}" \
+            -f release_tag="${{ inputs.tag }}"

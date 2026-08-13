@@ -1,0 +1,39 @@
+# COSMIC desktop packages built as Debian .deb from sory-os/cosmic-epoch.
+# rule = "source" forces a rebuild from source in CI. Packages without a rule
+# are copied from the base Release when release_binary=1.
+#
+# Generated from cosmic-apps/manifest.json
+
+[general]
+# Same monorepo layout as Redox recipes/cosmic/*/recipe.toml:
+# git clone cosmic-epoch + libcosmic sibling + subpath per component.
+
+[packages]
+cosmic-applets = "source"
+cosmic-applibrary = "source"
+cosmic-bg = "source"
+cosmic-comp = "source"
+cosmic-edit = "source"
+cosmic-files = "source"
+cosmic-greeter = "source"
+cosmic-icons = "source"
+cosmic-idle = "source"
+cosmic-initial-setup = "source"
+cosmic-launcher = "source"
+cosmic-monitor = "source"
+cosmic-notifications = "source"
+cosmic-osd = "source"
+cosmic-panel = "source"
+cosmic-player = "source"
+cosmic-randr = "source"
+cosmic-screenshot = "source"
+cosmic-session = "source"
+cosmic-settings = "source"
+cosmic-settings-daemon = "source"
+cosmic-store = "source"
+cosmic-term = "source"
+cosmic-wallpapers = "source"
+cosmic-workspaces-epoch = "source"
+soryos-launcher = "source"
+simple-wrapper = "source"
+xdg-desktop-portal-cosmic = "source"

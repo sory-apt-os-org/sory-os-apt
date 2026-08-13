@@ -1,0 +1,151 @@
+# Incremental in-place update of an existing SoryOS Debian GitHub Release.
+# Rebuilds only the listed components, merges them into index.json, re-signs,
+# and replaces only the changed Release assets.
+
+name: Update SoryOS Debian Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      components:
+        description: 'Changed components to rebuild (space-separated)'
+        required: true
+      release_tag:
+        description: 'Existing immutable Release tag to update in place'
+        required: true
+
+concurrency:
+  group: update-deb-release-soryos
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  DEBIAN_FRONTEND: noninteractive
+  SORYOS_APT_REPO: sory-os-org/sory-os-apt
+  SORYOS_COSMIC_EPOCH_REPO: https://github.com/sory-os-org/cosmic-epch.git
+  SORYOS_COSMIC_EPOCH_REF: main
+  SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
+  SORYOS_LIBCOSMIC_REF: main
+  SORYOS_COSMIC_WORK: ${{ runner.temp }}/soryos-sources
+
+jobs:
+  build:
+    name: Rebuild changed components
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJson(format('["{0}"]', join('","', split(inputs.components, ' ')))) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Prepare cosmic sources (GitLab recipes)
+        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential devscripts debhelper dpkg-dev \
+            cargo rustup pkg-config cmake just \
+            libwayland-dev libxkbcommon-dev libglib2.0-dev \
+            libclang-dev libpipewire-0.3-dev libudev-dev \
+            libinput-dev libgbm-dev libseat-dev libsystemd-dev \
+            libdbus-1-dev libpam0g-dev libssl-dev libzstd-dev \
+            libpixman-1-dev libfontconfig-dev libfreetype-dev \
+            libegl1-mesa-dev libxcb1-dev libdisplay-info-dev \
+            libdav1d-dev libexpat1-dev \
+            libflatpak-dev libpolkit-agent-1-dev \
+            imagemagick fonts-open-sans meson patchelf b3sum jq
+
+      - name: Build component
+        id: build
+        run: |
+          set -e
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch/${{ matrix.component }}"
+          if [ ! -f debian/control ]; then
+            echo "no_deb=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          SOURCE=$(grep '^Source:' debian/control | sed 's/Source: //')
+          echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
+          dpkg-buildpackage -us -uc -b
+          echo "no_deb=false" >> "$GITHUB_OUTPUT"
+
+      - name: Upload rebuilt .deb
+        if: steps.build.outputs.no_deb != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.component }}
+          path: ${{ env.SORYOS_COSMIC_WORK }}/cosmic-epoch/${{ steps.build.outputs.source }}_*.deb
+          retention-days: 2
+
+  publish:
+    name: Merge index and replace changed assets
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y b3sum jq openssl curl
+
+      - name: Download rebuilt packages
+        uses: actions/download-artifact@v4
+        with:
+          path: soryos-apt/new-packages
+          pattern: "deb-*"
+          merge-multiple: true
+
+      - name: Update signed Release index
+        env:
+          SORYOS_INDEX_PRIVATE_KEY_PEM: ${{ secrets.SORYOS_INDEX_PRIVATE_KEY_PEM }}
+        run: |
+          cd soryos-apt
+          TAG="${{ inputs.release_tag }}"
+          INDEX_URL="https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${TAG}/index.json"
+          curl -fsSL "$INDEX_URL" -o /tmp/current-index.json
+          curl -fsSL "${INDEX_URL%.json}.json.sig" -o /tmp/current-index.json.sig
+          curl -fsSL "${INDEX_URL%/index.json}/index-signing-key.pub.pem" \
+            -o /tmp/index-signing-key.pub.pem
+          ./scripts/verify-release-index.sh \
+            /tmp/current-index.json \
+            /tmp/current-index.json.sig \
+            /tmp/index-signing-key.pub.pem
+          python3 scripts/update-release-index.py \
+            /tmp/current-index.json \
+            new-packages \
+            release-out/index.json \
+            "$TAG"
+          umask 077
+          printf '%s\n' "$SORYOS_INDEX_PRIVATE_KEY_PEM" > index-signing-key.pem
+          ./scripts/sign-release-index.sh release-out/index.json index-signing-key.pem
+          openssl pkey -in index-signing-key.pem -pubout \
+            -out release-out/index-signing-key.pub.pem
+          openssl pkey -pubin -in release-out/index-signing-key.pub.pem \
+            -outform DER | tail -c 32 | od -An -tx1 -v | tr -d ' \n' \
+            > release-out/index-signing-key.pub.hex
+          rm -f index-signing-key.pem
+
+      - name: Replace changed Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd soryos-apt
+          TAG="${{ inputs.release_tag }}"
+          for asset in release-out/*; do
+            [[ -f "$asset" ]] || continue
+            gh release upload "$TAG" "$asset" --repo "${{ env.SORYOS_APT_REPO }}" --clobber
+          done
+          for deb in new-packages/*.deb; do
+            [[ -f "$deb" ]] || continue
+            gh release upload "$TAG" "$deb" --repo "${{ env.SORYOS_APT_REPO }}" --clobber
+          done

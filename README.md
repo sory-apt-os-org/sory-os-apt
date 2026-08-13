@@ -56,28 +56,33 @@ soryos-apt/
 
 ## Workflow CI (GitHub Actions)
 
+Les binaires `.deb` sont publiés sur des **GitHub Releases immuables**, pas sur
+GitHub Pages. Voir `redox/docs-plans/PLAN-INDEX-PAGES-RELEASES-SIGNE.md`.
+
+| Canal | Rôle | Contenu |
+|-------|------|---------|
+| **GitHub Release** | stockage binaire | `*.deb` + copie immuable de l'index pour le tag |
+| **GitHub Pages** | catalogue léger | `index.json` signé, clés, `dists/stable/` (sans `pool/`) |
+
 ```
-Push ou Schedule (daily 03:00 UTC)
+workflow_dispatch (tag immuable)
         │
-Clone cosmic-epoch (submodules: 28 composants)
+Clone sory-os/cosmic-epoch → dpkg-buildpackage
         │
-[Matrix CI] Build chaque composant COSMIC (dpkg-buildpackage)
-  ├── cosmic-files, cosmic-session, cosmic-settings...
-  ├── pop-launcher, simple-wrapper, xdg-desktop-portal-cosmic
-  └── cosmic-sound-theme (meson)
+generate-release-index.py + signature Ed25519
         │
-Build paquets d'intégration SoryOS (templates/)
+Upload *.deb + index → GitHub Release
         │
-Generate APT index (dpkg-scanpackages)
+publish-pages.yml → index + dists/ → GitHub Pages
         │
-Sign repository (GPG)
-        │
-Test repository
-        │
-Push pool/ + dists/ → GitHub Pages
-        │
-→ https://sory-x.github.io/soryos-apt
+ISO : Pages (catalogue) + Release (.deb) → pool local file://
 ```
+
+Workflows principaux :
+
+- `.github/workflows/build-deb-release.yml` — Release complète/incrémentale
+- `.github/workflows/update-deb-release.yml` — mise à jour en place
+- `.github/workflows/build-all.yml` — build matrix + publish si `release_tag` fourni
 
 ## Suites APT
 

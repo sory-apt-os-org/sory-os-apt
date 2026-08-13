@@ -6,10 +6,21 @@ on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Optional immutable GitHub Release tag for publishing .deb assets'
+        required: false
+        default: ''
 
 env:
   CARGO_TERM_COLOR: always
   DEBIAN_FRONTEND: noninteractive
+  SORYOS_APT_REPO: sory-os-org/sory-os-apt
+  SORYOS_COSMIC_EPOCH_REPO: https://github.com/sory-os-org/cosmic-epch.git
+  SORYOS_COSMIC_EPOCH_REF: main
+  SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
+  SORYOS_LIBCOSMIC_REF: main
+  SORYOS_COSMIC_WORK: ${{ runner.temp }}/soryos-sources
 
 jobs:
   build-integration:
@@ -20,7 +31,12 @@ jobs:
         with:
           path: soryos-apt
 
+      - name: Prepare cosmic sources (GitLab recipes)
+        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
+
       - name: Build integration packages
+        env:
+          SORYOS_COSMIC_EPOCH_DIR: ${{ env.SORYOS_COSMIC_WORK }}/cosmic-epoch
         run: |
           cd soryos-apt
           mkdir -p pool/stable
@@ -72,9 +88,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: sory-x/soryos
-          path: soryos
-          submodules: recursive
+          path: soryos-apt
+
+      - name: Prepare cosmic sources (GitLab recipes)
+        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -108,7 +125,7 @@ jobs:
         id: build
         run: |
           set -e
-          cd soryos/cosmic-epoch/${{ matrix.component }}
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch/${{ matrix.component }}"
 
           if [ ! -f debian/control ]; then
             echo "No debian/control - skipping dpkg-buildpackage"
@@ -127,7 +144,7 @@ jobs:
       - name: Collect .deb
         if: steps.build.outputs.no_deb != 'true'
         run: |
-          cd soryos/cosmic-epoch
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch"
           SOURCE="${{ steps.build.outputs.source }}"
           echo "Looking for debs matching source=$SOURCE"
           ls -la ${SOURCE}_*.deb 2>/dev/null || true
@@ -143,7 +160,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: deb-${{ matrix.component }}
-          path: soryos/cosmic-epoch/${{ steps.build.outputs.source }}_*.deb
+          path: ${{ env.SORYOS_COSMIC_WORK }}/cosmic-epoch/${{ steps.build.outputs.source }}_*.deb
           retention-days: 1
 
   build-sound-theme:
@@ -152,13 +169,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: sory-x/soryos
-          path: soryos
-          submodules: recursive
+          path: soryos-apt
+
+      - name: Prepare cosmic sources (GitLab recipes)
+        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
 
       - name: Build cosmic-sound-theme with meson
         run: |
-          cd soryos/cosmic-epoch/cosmic-sound-theme
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch/cosmic-sound-theme"
           VERSION=$(grep "version:" meson.build | head -1 | sed "s/.*version: '*//;s/'*,//;s/[' ]//g")
           PKGDIR="/tmp/pkg/cosmic-sound-theme"
           rm -rf "$PKGDIR"
@@ -183,61 +201,103 @@ CTRL
         uses: actions/upload-artifact@v4
         with:
           name: deb-cosmic-sound-theme
-          path: soryos/cosmic-epoch/cosmic-sound-theme_*.deb
+          path: ${{ env.SORYOS_COSMIC_WORK }}/cosmic-epoch/cosmic-sound-theme_*.deb
           retention-days: 1
 
   publish:
-    name: Publish to GitHub Pages
+    name: Publish to GitHub Release
     needs:
       - build-integration
       - build-cosmic
       - build-sound-theme
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pages: write
     steps:
       - uses: actions/checkout@v4
         with:
           path: soryos-apt
 
+      - name: Install publishing tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils dpkg-dev gnupg gzip b3sum jq openssl curl
+
       - name: Download all .deb artifacts
         uses: actions/download-artifact@v4
         with:
-          path: soryos-apt/pool/stable
+          path: soryos-apt/release-out
           pattern: "deb-*"
           merge-multiple: true
 
-      - name: List all collected debs
-        run: ls -la soryos-apt/pool/stable/
+      - name: Download integration debs
+        uses: actions/download-artifact@v4
+        with:
+          path: soryos-apt/release-out
+          pattern: "debs-integration"
+          merge-multiple: true
 
-      - name: Generate APT index
+      - name: Build signed Release index
+        env:
+          SORYOS_GPG_PRIVATE_KEY: ${{ secrets.SORYOS_GPG_PRIVATE_KEY }}
+          SORYOS_INDEX_PRIVATE_KEY_PEM: ${{ secrets.SORYOS_INDEX_PRIVATE_KEY_PEM }}
         run: |
           cd soryos-apt
-          sudo apt-get install -y dpkg-dev
-          ./scripts/generate-index.sh
-
-      - name: Sign repository
-        run: |
-          cd soryos-apt
-          ./scripts/init-signing-key.sh
+          mkdir -p pool/stable dists/stable/main/binary-amd64 keyrings release-out
+          mv release-out/*.deb pool/stable/ 2>/dev/null || true
+          ./scripts/ci-import-signing-key.sh
+          SORYOS_SUITES=stable ./scripts/generate-index.sh
           ./scripts/sign-repository.sh
-
-      - name: Test repository
-        run: |
-          cd soryos-apt
+          cp keyrings/soryos-archive-keyring.gpg release-out/
+          cp dists/stable/Release release-out/
+          cp dists/stable/Release.gpg release-out/
+          cp dists/stable/InRelease release-out/
+          cp dists/stable/main/binary-amd64/Packages release-out/
+          cp dists/stable/main/binary-amd64/Packages.gz release-out/
+          cp pool/stable/*.deb release-out/
+          python3 scripts/generate-release-index.py \
+            release-out \
+            "${{ inputs.release_tag }}" \
+            "${{ env.SORYOS_APT_REPO }}" \
+            release-out/index.json \
+            "https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${{ inputs.release_tag }}" \
+            release-out/soryos-archive-keyring.gpg
+          test -n "${SORYOS_INDEX_PRIVATE_KEY_PEM:-}" || {
+            echo "Missing SORYOS_INDEX_PRIVATE_KEY_PEM GitHub secret" >&2
+            exit 1
+          }
+          umask 077
+          printf '%s\n' "$SORYOS_INDEX_PRIVATE_KEY_PEM" > index-signing-key.pem
+          ./scripts/sign-release-index.sh release-out/index.json index-signing-key.pem
+          openssl pkey -in index-signing-key.pem -pubout \
+            -out release-out/index-signing-key.pub.pem
+          openssl pkey -pubin -in release-out/index-signing-key.pub.pem \
+            -outform DER | tail -c 32 | od -An -tx1 -v | tr -d ' \n' \
+            > release-out/index-signing-key.pub.hex
+          rm -f index-signing-key.pem
           ./scripts/test-local-repo.sh
 
-      - name: Commit and push
+      - name: Ensure immutable Release tag is unused
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cd soryos-apt
-          git config user.name "SoryOS CI"
-          git config user.email "ci@soryos.local"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            PACKAGES=$(ls pool/stable/*.deb 2>/dev/null | wc -l)
-            git commit -m "Auto-build: $PACKAGES packages ($(date -u +%Y-%m-%d))"
-            git push origin main
+          if gh release view "${{ inputs.release_tag }}" --repo "${{ env.SORYOS_APT_REPO }}" >/dev/null 2>&1; then
+            echo "Release tag already exists; refusing to overwrite immutable artifacts" >&2
+            exit 1
           fi
+
+      - name: Upload Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd soryos-apt/release-out
+          gh release create "${{ inputs.release_tag }}" \
+            --repo "${{ env.SORYOS_APT_REPO }}" \
+            --title "SoryOS Debian packages (${{ inputs.release_tag }})" \
+            --notes "Immutable SoryOS .deb Release published by build-all.yml"
+          while IFS= read -r -d '' asset; do
+            gh release upload "${{ inputs.release_tag }}" "$asset" \
+              --repo "${{ env.SORYOS_APT_REPO }}" || exit 1
+            sleep 1
+          done < <(find . -maxdepth 1 -type f -print0 | sort -z)

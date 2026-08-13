@@ -146,7 +146,7 @@ build_package soryos-desktop
 build_package libcosmic
 
 # ── cosmic-sory-ia : construit le métapaquet des binaires AI ─────
-IA_SRC_DIR="$ROOT_DIR/../cosmic-epoch/cosmic-sory-ia"
+IA_SRC_DIR="${SORYOS_COSMIC_EPOCH_DIR:-$ROOT_DIR/../cosmic-epoch}/cosmic-sory-ia"
 if [[ -d "$IA_SRC_DIR" ]]; then
   printf 'building cosmic-sory-ia from %s\n' "$IA_SRC_DIR" | tee -a "$LOG_FILE"
   build_ia_package "$IA_SRC_DIR"

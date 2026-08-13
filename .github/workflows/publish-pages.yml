@@ -1,0 +1,63 @@
+name: Publish SoryOS Pages catalog
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag whose signed index is published to Pages'
+        required: true
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+env:
+  SORYOS_APT_REPO: sory-os-org/sory-os-apt
+
+jobs:
+  publish-pages:
+    name: Publish index + APT metadata to GitHub Pages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Resolve release tag
+        id: tag
+        run: echo "tag=${{ inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: Download signed catalog from Release
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          cd soryos-apt
+          mkdir -p pages-out/dists/stable/main/binary-amd64 pages-out/keyrings
+          BASE="https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${TAG}"
+          for file in \
+            index.json index.json.sig \
+            index-signing-key.pub.pem index-signing-key.pub.hex \
+            soryos-archive-keyring.gpg \
+            Release Release.gpg InRelease \
+            Packages Packages.gz
+          do
+            curl -fsSL "${BASE}/${file}" -o "pages-out/${file}" || true
+          done
+          mv pages-out/Release pages-out/dists/stable/Release 2>/dev/null || true
+          mv pages-out/Release.gpg pages-out/dists/stable/Release.gpg 2>/dev/null || true
+          mv pages-out/InRelease pages-out/dists/stable/InRelease 2>/dev/null || true
+          mv pages-out/Packages pages-out/dists/stable/main/binary-amd64/Packages 2>/dev/null || true
+          mv pages-out/Packages.gz pages-out/dists/stable/main/binary-amd64/Packages.gz 2>/dev/null || true
+          mv pages-out/soryos-archive-keyring.gpg pages-out/keyrings/ 2>/dev/null || true
+          SORYOS_RELEASE_TAG="${TAG}" SORYOS_APT_REPO="${{ env.SORYOS_APT_REPO }}" \
+            ./scripts/publish-pages-catalog.sh pages-out
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: soryos-apt/pages-publish
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

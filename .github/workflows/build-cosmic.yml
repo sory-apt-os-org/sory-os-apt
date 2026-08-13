@@ -12,12 +12,21 @@ on:
         required: false
         type: boolean
         default: false
+      release_tag:
+        description: 'Immutable GitHub Release tag (required to publish)'
+        required: false
+        default: ''
   schedule:
     - cron: '0 3 * * *'
 
 env:
   CARGO_TERM_COLOR: always
   DEBIAN_FRONTEND: noninteractive
+  SORYOS_COSMIC_EPOCH_REPO: https://github.com/sory-os-org/cosmic-epch.git
+  SORYOS_COSMIC_EPOCH_REF: main
+  SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
+  SORYOS_LIBCOSMIC_REF: main
+  SORYOS_COSMIC_WORK: ${{ runner.temp }}/soryos-sources
 
 jobs:
   detect-changes:
@@ -30,16 +39,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: soryos-apt
-      - uses: actions/checkout@v4
-        with:
-          repository: sory-x/soryos
-          path: soryos
-          submodules: recursive
+
+      - name: Prepare cosmic sources (GitLab recipes)
+        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
 
       - name: Detect version changes
         id: detect
         run: |
-          cd soryos/cosmic-epoch
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch"
           CHANGES=""
 
           ALL_COMPONENTS="cosmic-applets cosmic-applibrary cosmic-bg cosmic-comp cosmic-edit cosmic-files cosmic-greeter cosmic-icons cosmic-idle cosmic-initial-setup cosmic-launcher cosmic-monitor cosmic-notifications cosmic-osd cosmic-panel cosmic-player cosmic-randr cosmic-screenshot cosmic-session cosmic-settings cosmic-settings-daemon cosmic-sory-ia cosmic-store cosmic-term cosmic-wallpapers cosmic-workspaces-epoch soryos-launcher simple-wrapper xdg-desktop-portal-cosmic"
@@ -47,14 +54,12 @@ jobs:
           for dir in $ALL_COMPONENTS; do
             if [ ! -d "$dir" ]; then continue; fi
 
-            # Extract Source package name from debian/control
             if [ -f "$dir/debian/control" ]; then
               PKG_NAME=$(grep '^Source:' "$dir/debian/control" | sed 's/Source: //')
             else
               PKG_NAME="$dir"
             fi
 
-            # Determine source version
             if [ -f "$dir/Cargo.toml" ]; then
               SRC_VER=$(grep '^version' "$dir/Cargo.toml" | head -1 | sed 's/version = "//;s/"//')
             elif [ -f "$dir/debian/changelog" ]; then
@@ -63,8 +68,7 @@ jobs:
               continue
             fi
 
-            # Check pool
-            DEB=$(ls "../../soryos-apt/pool/stable/${PKG_NAME}_"*.deb 2>/dev/null | head -1)
+            DEB=$(ls "$GITHUB_WORKSPACE/soryos-apt/pool/stable/${PKG_NAME}_"*.deb 2>/dev/null | head -1)
             if [ -n "$DEB" ]; then
               POOL_VER=$(basename "$DEB" | sed "s/${PKG_NAME}_//;s/_all.deb//;s/_amd64.deb//")
             else
@@ -106,9 +110,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: sory-x/soryos
-          path: soryos
-          submodules: recursive
+          path: soryos-apt
+
+      - name: Prepare cosmic sources (GitLab recipes)
+        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -140,7 +145,7 @@ jobs:
         id: build
         run: |
           set -e
-          cd soryos/cosmic-epoch/${{ matrix.component }}
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch/${{ matrix.component }}"
 
           if [ ! -f debian/control ]; then
             echo "No debian/control - skipping"
@@ -158,11 +163,11 @@ jobs:
       - name: Collect .deb
         if: steps.build.outputs.no_deb != 'true'
         run: |
-          cd soryos/cosmic-epoch
-          mkdir -p ../../soryos-apt/pool/stable
+          cd "$SORYOS_COSMIC_WORK/cosmic-epoch"
+          mkdir -p "$GITHUB_WORKSPACE/soryos-apt/pool/stable"
           for deb in ${{ steps.build.outputs.source }}_*.deb; do
             if [ -f "$deb" ]; then
-              cp "$deb" ../../soryos-apt/pool/stable/
+              cp "$deb" "$GITHUB_WORKSPACE/soryos-apt/pool/stable/"
               echo "Collected: $deb"
             fi
           done
@@ -172,17 +177,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: deb-${{ matrix.component }}
-          path: soryos/cosmic-epoch/${{ steps.build.outputs.source }}_*.deb
+          path: ${{ env.SORYOS_COSMIC_WORK }}/cosmic-epoch/${{ steps.build.outputs.source }}_*.deb
           retention-days: 1
 
   publish:
-    name: Publish to APT
+    name: Publish to GitHub Release
     needs: [detect-changes, build]
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    if: needs.detect-changes.outputs.has_changes == 'true' && github.event.inputs.release_tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pages: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -191,27 +195,43 @@ jobs:
       - name: Download all .deb artifacts
         uses: actions/download-artifact@v4
         with:
-          path: soryos-apt/pool/stable
+          path: soryos-apt/release-out
           pattern: "deb-*"
           merge-multiple: true
 
-      - name: Generate APT index and sign
+      - name: Build signed Release index
+        env:
+          SORYOS_GPG_PRIVATE_KEY: ${{ secrets.SORYOS_GPG_PRIVATE_KEY }}
+          SORYOS_INDEX_PRIVATE_KEY_PEM: ${{ secrets.SORYOS_INDEX_PRIVATE_KEY_PEM }}
         run: |
           cd soryos-apt
-          sudo apt-get install -y dpkg-dev
-          ./scripts/generate-index.sh
-          ./scripts/init-signing-key.sh
+          mkdir -p pool/stable release-out
+          mv release-out/*.deb pool/stable/ 2>/dev/null || true
+          ./scripts/ci-import-signing-key.sh
+          SORYOS_SUITES=stable ./scripts/generate-index.sh
           ./scripts/sign-repository.sh
+          cp keyrings/soryos-archive-keyring.gpg release-out/
+          cp pool/stable/*.deb release-out/
+          python3 scripts/generate-release-index.py \
+            release-out \
+            "${{ github.event.inputs.release_tag }}" \
+            "sory-os-org/sory-os-apt" \
+            release-out/index.json
+          umask 077
+          printf '%s\n' "$SORYOS_INDEX_PRIVATE_KEY_PEM" > index-signing-key.pem
+          ./scripts/sign-release-index.sh release-out/index.json index-signing-key.pem
+          rm -f index-signing-key.pem
 
-      - name: Commit and push
+      - name: Upload Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cd soryos-apt
-          git config user.name "SoryOS CI"
-          git config user.email "ci@soryos.local"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes"
-          else
-            git commit -m "Auto-update: ${{ needs.detect-changes.outputs.changes }}"
-            git push origin main
-          fi
+          cd soryos-apt/release-out
+          gh release create "${{ github.event.inputs.release_tag }}" \
+            --repo sory-os-org/sory-os-apt \
+            --title "SoryOS Debian incremental (${{ github.event.inputs.release_tag }})" \
+            --notes "COSMIC components: ${{ needs.detect-changes.outputs.changes }}"
+          find . -maxdepth 1 -type f -print0 | sort -z | while IFS= read -r -d '' asset; do
+            gh release upload "${{ github.event.inputs.release_tag }}" "$asset" \
+              --repo sory-os-org/sory-os-apt
+          done
