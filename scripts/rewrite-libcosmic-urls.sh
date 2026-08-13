@@ -1,28 +1,20 @@
 #!/usr/bin/env bash
-# Swap pop-os/libcosmic git URLs to sory-os-org/libcosmic in a cosmic-epoch tree.
-# Keeps the same URL shape Pop!_OS uses (.git, trailing slash, etc.).
+# Point libcosmic git dependencies at the sibling libcosmic checkout used in CI.
 set -euo pipefail
 
 ROOT="${1:-}"
+LIBCOSMIC_DIR="${2:-}"
 if [[ -z "$ROOT" ]]; then
-  printf 'usage: %s <cosmic-epoch-dir>\n' "$0" >&2
+  printf 'usage: %s <cosmic-epoch-dir> [libcosmic-dir]\n' "$0" >&2
   exit 2
 fi
 
 ROOT="$(cd "$ROOT" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-rewrite_file() {
-  local file="$1"
-  [[ -f "$file" ]] || return 0
-  perl -pi -e 's|https://github.com/pop-os/libcosmic|https://github.com/sory-os-org/libcosmic|g' "$file"
-}
+if [[ -z "$LIBCOSMIC_DIR" ]]; then
+  LIBCOSMIC_DIR="$(cd "$ROOT/.." && pwd)/libcosmic"
+fi
+LIBCOSMIC_DIR="$(cd "$LIBCOSMIC_DIR" && pwd)"
 
-while IFS= read -r -d '' file; do
-  rewrite_file "$file"
-done < <(find "$ROOT" -name Cargo.toml -not -path '*/target/*' -print0)
-
-while IFS= read -r -d '' file; do
-  rewrite_file "$file"
-done < <(find "$ROOT" -name Cargo.lock -not -path '*/target/*' -print0)
-
-printf 'rewrote libcosmic git URLs under %s\n' "$ROOT"
+exec python3 "$SCRIPT_DIR/rewrite-libcosmic-paths.py" "$ROOT" "$LIBCOSMIC_DIR"
