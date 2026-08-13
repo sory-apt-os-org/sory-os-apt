@@ -25,6 +25,10 @@ require_tool() {
 
 require_tool git
 
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+fi
+
 sync_repo() {
   local url="$1"
   local ref="$2"

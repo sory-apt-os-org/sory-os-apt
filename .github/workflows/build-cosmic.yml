@@ -19,14 +19,18 @@ on:
   schedule:
     - cron: '0 3 * * *'
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   DEBIAN_FRONTEND: noninteractive
+  GITHUB_TOKEN: ${{ github.token }}
   SORYOS_COSMIC_EPOCH_REPO: https://github.com/sory-os-org/cosmic-epoch.git
   SORYOS_COSMIC_EPOCH_REF: main
   SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
   SORYOS_LIBCOSMIC_REF: main
-  SORYOS_COSMIC_WORK: ${{ runner.temp }}/soryos-sources
+  SORYOS_COSMIC_WORK: /tmp/soryos-sources
 
 jobs:
   detect-changes:
