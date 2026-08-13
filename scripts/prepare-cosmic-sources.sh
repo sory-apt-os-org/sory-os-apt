@@ -55,9 +55,9 @@ if [[ ! -f "$NM_DEST/Cargo.toml" ]]; then
   NM_VENDOR="$WORK_DIR/.cosmic-settings-nm-vendor"
   rm -rf "$NM_VENDOR"
   git clone --depth 1 --filter=blob:none --sparse \
-    https://github.com/Rahul-2k4/cosmic-settings.git "$NM_VENDOR"
-  git -C "$NM_VENDOR" sparse-checkout set subscriptions/network-manager
-  cp -a "$NM_VENDOR/subscriptions/network-manager" "$NM_DEST"
+    https://github.com/xiaoyu-work/claw-os.git "$NM_VENDOR"
+  git -C "$NM_VENDOR" sparse-checkout set desktop/settings/subscriptions/network-manager
+  cp -a "$NM_VENDOR/desktop/settings/subscriptions/network-manager" "$NM_DEST"
   rm -rf "$NM_VENDOR"
 fi
 
