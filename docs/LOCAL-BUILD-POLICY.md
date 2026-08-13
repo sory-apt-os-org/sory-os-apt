@@ -3,9 +3,8 @@
 Ce document liste **tout ce qui doit être compilé sur les runners GitHub Actions**
 et **ce qui peut (ou doit) être fait sur un PC de développement** avec RAM limitée.
 
-Le patch Cargo (`.cargo/config.toml` dans `cosmic-epoch`) redirige toutes les
-dépendances `pop-os/libcosmic` vers `github.com/sory-os-org/libcosmic` (checkout
-frère de `cosmic-epoch`). Appliqué automatiquement par `prepare-cosmic-sources.sh`.
+Sources COSMIC : dépendances `git = "https://github.com/sory-os-org/libcosmic.git"` dans chaque
+app (même modèle que Pop!_OS avec `pop-os/libcosmic`, org remplacée par `sory-os-org`).
 (via `scripts/prepare-cosmic-sources.sh`, modèle recettes Redox).
 
 ---
