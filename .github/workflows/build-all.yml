@@ -113,7 +113,7 @@ jobs:
           sudo apt-get install -y \
             build-essential devscripts debhelper dpkg-dev \
             gnupg gzip xz-utils apt-utils \
-            cargo rustup pkg-config cmake just \
+            rustup pkg-config cmake just \
             libwayland-dev libxkbcommon-dev libglib2.0-dev \
             libclang-dev libpipewire-0.3-dev libudev-dev \
             libinput-dev libgbm-dev libseat-dev libsystemd-dev \
@@ -124,6 +124,9 @@ jobs:
             libflatpak-dev libpolkit-agent-1-dev \
             imagemagick fonts-open-sans \
             meson patchelf
+
+      - name: Install Rust toolchain
+        run: rustup default stable
 
       - name: Build with dpkg-buildpackage
         id: build
