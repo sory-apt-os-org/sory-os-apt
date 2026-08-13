@@ -42,7 +42,10 @@ sync_repo() {
 sync_repo "$COSMIC_EPOCH_REPO" "$COSMIC_EPOCH_REF" "$WORK_DIR/cosmic-epoch"
 sync_repo "$LIBCOSMIC_REPO" "$LIBCOSMIC_REF" "$WORK_DIR/libcosmic"
 
-git -C "$WORK_DIR/cosmic-epoch" submodule update --init --recursive cosmic-sory-ia 2>/dev/null || true
+git -C "$WORK_DIR/cosmic-epoch" submodule update --init --recursive
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/rewrite-libcosmic-urls.sh" "$WORK_DIR/cosmic-epoch"
 
 printf 'cosmic sources ready:\n'
 printf '  cosmic-epoch: %s @ %s\n' "$COSMIC_EPOCH_REPO" "$COSMIC_EPOCH_REF"
