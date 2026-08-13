@@ -38,6 +38,27 @@ EPOCH_CRATE_DIRS: dict[str, str] = {
     "cctk": "cosmic-protocols/client-toolkit",
 }
 
+DBUS_SETTINGS_GIT = re.compile(
+    r"https://github\.com/pop-os/dbus-settings-bindings(?:\.git)?"
+)
+
+DBUS_SETTINGS_CRATE_DIRS: dict[str, str] = {
+    "cosmic-dbus-a11y": "dbus-settings-bindings/a11y",
+    "bluez-zbus": "dbus-settings-bindings/bluez",
+    "locale1": "dbus-settings-bindings/locale1",
+    "mpris2-zbus": "dbus-settings-bindings/mpris2",
+    "cosmic-dbus-networkmanager": "dbus-settings-bindings/networkmanager",
+    "timedate-zbus": "dbus-settings-bindings/timedate",
+    "upower_dbus": "dbus-settings-bindings/upower",
+    "switcheroo-control": "dbus-settings-bindings/switcheroo-control",
+    "accounts-zbus": "dbus-settings-bindings/accounts-zbus",
+    "hostname1-zbus": "dbus-settings-bindings/hostname1",
+    "nm-secret-agent-manager": "dbus-settings-bindings/nm-secret-agent-manager",
+    "geoclue2": "dbus-settings-bindings/geoclue2",
+}
+
+VIRTUAL_EPOCH_REPOS = frozenset({"dbus-settings-bindings"})
+
 POP_OS_EPOCH_GIT = re.compile(
     r"https://github\.com/pop-os/([A-Za-z0-9_-]+)(?:\.git)?"
 )
@@ -68,10 +89,17 @@ def epoch_crate_dir(cosmic_epoch: Path, dep_name: str, inner: str) -> Path | Non
         return cosmic_epoch / EPOCH_CRATE_DIRS[dep_name]
     if dep_name in SETTINGS_CRATE_DIRS:
         return cosmic_epoch / SETTINGS_CRATE_DIRS[dep_name]
+    if DBUS_SETTINGS_GIT.search(inner):
+        sub = DBUS_SETTINGS_CRATE_DIRS.get(dep_name)
+        if not sub:
+            return None
+        return cosmic_epoch / sub
     match = POP_OS_EPOCH_GIT.search(inner)
     if not match:
         return None
     repo = match.group(1)
+    if repo in VIRTUAL_EPOCH_REPOS:
+        return None
     candidate = cosmic_epoch / repo
     if candidate.is_dir():
         return candidate
@@ -115,14 +143,14 @@ def rewrite_inline_tables(
             assert target is not None
             path = rel_path(cargo_file, target)
             rest = strip_repo_git_keys(inner, SETTINGS_GIT)
-        elif POP_OS_EPOCH_GIT.search(inner) or SETTINGS_GIT.search(inner):
+        elif POP_OS_EPOCH_GIT.search(inner) or SETTINGS_GIT.search(inner) or DBUS_SETTINGS_GIT.search(inner):
             target = epoch_crate_dir(cosmic_epoch, dep_name, inner)
             if target is None and SETTINGS_GIT.search(inner):
                 target = settings_dir(cosmic_epoch, dep_name)
             if target is None or not target.is_dir():
                 return match.group(0)
             path = rel_path(cargo_file, target)
-            rest = strip_repo_git_keys(inner, POP_OS_EPOCH_GIT, SETTINGS_GIT)
+            rest = strip_repo_git_keys(inner, POP_OS_EPOCH_GIT, SETTINGS_GIT, DBUS_SETTINGS_GIT)
         else:
             return match.group(0)
         if rest:

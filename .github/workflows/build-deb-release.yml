@@ -270,6 +270,7 @@ jobs:
           fi
           SOURCE=$(grep '^Source:' debian/control | sed 's/Source: //')
           echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
+          "$GITHUB_WORKSPACE/soryos-apt/scripts/ensure-cargo-lock.sh" "$PWD"
           dpkg-buildpackage -us -uc -b -d
           echo "no_deb=false" >> "$GITHUB_OUTPUT"
 

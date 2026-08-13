@@ -55,7 +55,6 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/rewrite-libcosmic-urls.sh" "$WORK_DIR/cosmic-epoch" "$WORK_DIR/libcosmic"
-"$SCRIPT_DIR/regenerate-cargo-locks.sh" "$WORK_DIR/cosmic-epoch"
 
 printf 'cosmic sources ready:\n'
 printf '  cosmic-epoch: %s @ %s\n' "$COSMIC_EPOCH_REPO" "$COSMIC_EPOCH_REF"
