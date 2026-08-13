@@ -182,16 +182,16 @@ jobs:
           rm -rf "$PKGDIR"
           mkdir -p "$PKGDIR/DEBIAN"
 
-          cat > "$PKGDIR/DEBIAN/control" <<CTRL
-Package: cosmic-sound-theme
-Version: $VERSION
-Section: sound
-Priority: optional
-Architecture: all
-Maintainer: SoryOS Maintainers <maintainers@soryos.local>
-Description: COSMIC Sound Theme
- Sound theme for the COSMIC desktop environment.
-CTRL
+          printf '%s\n' \
+            'Package: cosmic-sound-theme' \
+            "Version: ${VERSION}" \
+            'Section: sound' \
+            'Priority: optional' \
+            'Architecture: all' \
+            'Maintainer: SoryOS Maintainers <maintainers@soryos.local>' \
+            'Description: COSMIC Sound Theme' \
+            ' Sound theme for the COSMIC desktop environment.' \
+            > "$PKGDIR/DEBIAN/control"
 
           meson setup build --prefix=/usr --destdir="$PKGDIR"
           meson install -C build
