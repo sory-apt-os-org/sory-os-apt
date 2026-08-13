@@ -24,5 +24,5 @@ if [[ ! -f "$COMPONENT_DIR/debian/control" ]]; then
 fi
 
 cd "$COMPONENT_DIR"
-dpkg-buildpackage -us -uc -b
+dpkg-buildpackage -us -uc -b -d
 printf 'built %s in %s\n' "$COMPONENT" "$WORK_DIR/cosmic-epoch"

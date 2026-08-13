@@ -62,8 +62,10 @@ jobs:
             libegl1-mesa-dev libxcb1-dev libdisplay-info-dev \
             libdav1d-dev libexpat1-dev \
             libflatpak-dev libpolkit-agent-1-dev \
+            mold nasm \
             imagemagick fonts-open-sans meson patchelf b3sum jq
           rustup default stable
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - name: Build component
         id: build
@@ -76,7 +78,7 @@ jobs:
           fi
           SOURCE=$(grep '^Source:' debian/control | sed 's/Source: //')
           echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
-          dpkg-buildpackage -us -uc -b
+          dpkg-buildpackage -us -uc -b -d
           echo "no_deb=false" >> "$GITHUB_OUTPUT"
 
       - name: Upload rebuilt .deb
