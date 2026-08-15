@@ -251,8 +251,8 @@ def rewrite_table_sections(
 
 
 PATCH_SOURCES = (
-    "https://github.com/pop-os/libcosmic",
-    "https://github.com/pop-os/libcosmic.git",
+    "https://github.com/sory-os-org/libcosmic",
+    "https://github.com/sory-os-org/libcosmic.git",
     "https://github.com/sory-os-org/libcosmic",
     "https://github.com/sory-os-org/libcosmic.git",
 )

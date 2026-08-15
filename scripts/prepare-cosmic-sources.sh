@@ -61,9 +61,9 @@ if [[ ! -f "$NM_DEST/Cargo.toml" ]]; then
   rm -rf "$NM_VENDOR"
 fi
 
-# External pop-os repos referenced via path rewrites (not submodules of cosmic-epoch).
-for ext_repo in cosmic-protocols dbus-settings-bindings freedesktop-icons; do
-  sync_repo "https://github.com/pop-os/${ext_repo}.git" main "$WORK_DIR/cosmic-epoch/${ext_repo}"
+# External vendor repos on sory-os-org referenced via path rewrites (not submodules of cosmic-epoch).
+for ext_repo in cosmic-protocols dbus-settings-bindings freedesktop-icons launch-pad xdg-shell-wrapper cosmic-mime-apps; do
+  sync_repo "https://github.com/sory-os-org/${ext_repo}.git" main "$WORK_DIR/cosmic-epoch/${ext_repo}"
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
