@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rewrite pop-os/sory-os-org libcosmic git deps to local path deps."""
+"""Rewrite sory-os-org libcosmic git deps to local path deps."""
 
 from __future__ import annotations
 
