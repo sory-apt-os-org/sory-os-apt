@@ -63,8 +63,16 @@ if [[ ! -f "$NM_DEST/Cargo.toml" ]]; then
 fi
 
 # External vendor repos on sory-os-org referenced via path rewrites (not submodules of cosmic-epoch).
+declare -A EXT_REPO_REFS=(
+  [cosmic-protocols]=main
+  [dbus-settings-bindings]=main
+  [freedesktop-icons]=main
+  [launch-pad]=master
+  [xdg-shell-wrapper]=master
+  [cosmic-mime-apps]=main
+)
 for ext_repo in cosmic-protocols dbus-settings-bindings freedesktop-icons launch-pad xdg-shell-wrapper cosmic-mime-apps; do
-  sync_repo "https://github.com/sory-os-org/${ext_repo}.git" main "$WORK_DIR/cosmic-epoch/${ext_repo}"
+  sync_repo "https://github.com/sory-os-org/${ext_repo}.git" "${EXT_REPO_REFS[$ext_repo]}" "$WORK_DIR/cosmic-epoch/${ext_repo}"
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
