@@ -46,7 +46,8 @@ sync_repo() {
 sync_repo "$COSMIC_EPOCH_REPO" "$COSMIC_EPOCH_REF" "$WORK_DIR/cosmic-epoch"
 sync_repo "$LIBCOSMIC_REPO" "$LIBCOSMIC_REF" "$WORK_DIR/libcosmic"
 
-git -C "$WORK_DIR/cosmic-epoch" submodule update --init --recursive
+# Migrated repos may lack Git LFS blobs on sory-os-org; screenshots are not needed to build.
+GIT_LFS_SKIP_SMUDGE=1 git -C "$WORK_DIR/cosmic-epoch" submodule update --init --recursive
 
 # network-manager subscription is required by cosmic-initial-setup but not yet on pop-os master.
 NM_DEST="$WORK_DIR/cosmic-epoch/cosmic-settings/subscriptions/network-manager"
