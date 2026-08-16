@@ -75,6 +75,11 @@ for ext_repo in cosmic-protocols dbus-settings-bindings freedesktop-icons launch
   sync_repo "https://github.com/sory-os-org/${ext_repo}.git" "${EXT_REPO_REFS[$ext_repo]}" "$WORK_DIR/cosmic-epoch/${ext_repo}"
 done
 
+# simple-wrapper is listed in .gitmodules but not yet registered in cosmic-epoch's git index.
+if [[ ! -f "$WORK_DIR/cosmic-epoch/simple-wrapper/Cargo.toml" ]]; then
+  sync_repo "https://github.com/sory-os-org/simple-wrapper.git" master_jammy "$WORK_DIR/cosmic-epoch/simple-wrapper"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/rewrite-libcosmic-urls.sh" "$WORK_DIR/cosmic-epoch" "$WORK_DIR/libcosmic"
 "$SCRIPT_DIR/patch-cosmic-ci-fixes.sh" "$WORK_DIR/cosmic-epoch"
