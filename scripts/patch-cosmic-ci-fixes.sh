@@ -41,6 +41,17 @@ if [[ -f "$sw_cargo" ]]; then
   if ! grep -q 'rev = "1ed69cb"' "$sw_cargo"; then
     sed -i 's|git = "https://github.com/smithay/smithay", default-features|git = "https://github.com/smithay/smithay", rev = "1ed69cb", default-features|' "$sw_cargo"
   fi
+  sed -i 's|git = "https://github.com/wash2/client-toolkit.git"|git = "https://github.com/smithay/client-toolkit", rev = "3bed072"|' "$sw_cargo"
+fi
+
+sw_config="$ROOT/simple-wrapper/simple-wrapper-config/Cargo.toml"
+if [[ -f "$sw_config" ]]; then
+  sed -i 's|xdg-shell-wrapper-config = { git = "https://github.com/[^"]*xdg-shell-wrapper[^"]*" }|xdg-shell-wrapper-config = { path = "../../xdg-shell-wrapper/xdg-shell-wrapper-config" }|' "$sw_config"
+fi
+
+sw_rules="$ROOT/simple-wrapper/debian/rules"
+if [[ -f "$sw_rules" ]]; then
+  sed -i 's/^VENDOR ?= 1/VENDOR ?= 0/' "$sw_rules"
 fi
 
 cs_rules="$ROOT/cosmic-settings/debian/rules"

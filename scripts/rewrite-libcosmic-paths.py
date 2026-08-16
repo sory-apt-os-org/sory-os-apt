@@ -390,6 +390,16 @@ def ensure_winit_patches(cargo_file: Path) -> bool:
     return False
 
 
+def existing_path_dep(cargo_file: Path, inner: str) -> Path | None:
+    match = re.search(r'path\s*=\s*"([^"]*)"', inner)
+    if not match:
+        return None
+    candidate = (cargo_file.parent / match.group(1)).resolve()
+    if (candidate / "Cargo.toml").is_file():
+        return candidate
+    return None
+
+
 def fix_workspace_path_deps(
     text: str, cargo_file: Path, cosmic_epoch: Path
 ) -> str:
@@ -398,6 +408,8 @@ def fix_workspace_path_deps(
         inner = match.group(2)
         sub = EPOCH_CRATE_DIRS.get(dep_name)
         if not sub or "path = " not in inner:
+            return match.group(0)
+        if existing_path_dep(cargo_file, inner) is not None:
             return match.group(0)
         target = cosmic_epoch / sub
         if not target.is_dir():
@@ -437,6 +449,12 @@ def fix_workspace_table_sections(
         while i < len(lines) and not lines[i].startswith("["):
             body_line = lines[i]
             if sub and re.match(r"^\s*path\s*=", body_line):
+                existing = re.match(r'^\s*path\s*=\s*"([^"]*)"', body_line)
+                if existing:
+                    candidate = (cargo_file.parent / existing.group(1)).resolve()
+                    if (candidate / "Cargo.toml").is_file():
+                        section.append(body_line)
+                        continue
                 target = cosmic_epoch / sub
                 if target.is_dir():
                     indent = re.match(r"^(\s*)", body_line).group(1)
