@@ -35,4 +35,17 @@ if [[ -f "$wifi_page" ]]; then
   sed -i 's/Container::Dialog(true)/Container::Dialog/g' "$wifi_page"
 fi
 
+sw_cargo="$ROOT/simple-wrapper/simple-wrapper/Cargo.toml"
+if [[ -f "$sw_cargo" ]]; then
+  sed -i 's/"slog-stdlog",\?//g; s/, "slog-stdlog"//g' "$sw_cargo"
+  if ! grep -q 'rev = "1ed69cb"' "$sw_cargo"; then
+    sed -i 's|git = "https://github.com/smithay/smithay", default-features|git = "https://github.com/smithay/smithay", rev = "1ed69cb", default-features|' "$sw_cargo"
+  fi
+fi
+
+cs_rules="$ROOT/cosmic-settings/debian/rules"
+if [[ -f "$cs_rules" ]]; then
+  sed -i 's/ischroot || just vendor/true # skip cargo vendor in CI/' "$cs_rules"
+fi
+
 printf 'applied CI compatibility patches under %s\n' "$ROOT"

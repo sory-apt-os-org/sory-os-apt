@@ -348,6 +348,48 @@ def ensure_libcosmic_patches(cargo_file: Path, libcosmic: Path) -> bool:
     return False
 
 
+WINIT_PATCH_SOURCES = (
+    "https://github.com/pop-os/winit",
+    "https://github.com/pop-os/winit.git",
+)
+
+WINIT_PATCH_RE = re.compile(
+    r"\n\[patch\.'[^']*winit[^']*'\](?:\n(?!#*\[).*)*",
+    re.MULTILINE,
+)
+
+
+def winit_patch_block() -> str:
+    blocks: list[str] = []
+    winit_dep = (
+        'winit = { git = "https://github.com/sory-os-org/winit.git", tag = "cosmic-0.14" }'
+    )
+    for url in WINIT_PATCH_SOURCES:
+        lines = [
+            f"[patch.'{url}']",
+            winit_dep,
+            'winit-core = { git = "https://github.com/sory-os-org/winit.git", tag = "cosmic-0.14" }',
+            'winit-common = { git = "https://github.com/sory-os-org/winit.git", tag = "cosmic-0.14" }',
+            'dpi = { git = "https://github.com/sory-os-org/winit.git", tag = "cosmic-0.14" }',
+        ]
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
+def ensure_winit_patches(cargo_file: Path) -> bool:
+    if not is_workspace_root(cargo_file):
+        return False
+    original = cargo_file.read_text()
+    if "winit" not in original and "libcosmic" not in original:
+        return False
+    updated = WINIT_PATCH_RE.sub("", original).rstrip()
+    updated = updated + "\n\n" + winit_patch_block() + "\n"
+    if updated != original:
+        cargo_file.write_text(updated)
+        return True
+    return False
+
+
 def fix_workspace_path_deps(
     text: str, cargo_file: Path, cosmic_epoch: Path
 ) -> str:
@@ -419,6 +461,7 @@ def rewrite_file(cargo_file: Path, libcosmic: Path, cosmic_epoch: Path) -> bool:
     patched = False
     if is_workspace_root(cargo_file):
         patched = ensure_libcosmic_patches(cargo_file, libcosmic)
+        patched = ensure_winit_patches(cargo_file) or patched
     return changed or patched
 
 

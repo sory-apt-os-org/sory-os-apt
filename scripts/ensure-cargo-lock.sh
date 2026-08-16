@@ -14,10 +14,8 @@ export CARGO_NET_GIT_FETCH_WITH_CLI=true
 root="$COMPONENT"
 while [[ "$root" != "/" ]]; do
   if [[ -f "$root/Cargo.toml" ]] && grep -q '^\[workspace\]' "$root/Cargo.toml"; then
-    if [[ ! -f "$root/Cargo.lock" ]]; then
-      printf 'generating lockfile in %s\n' "$root"
-      (cd "$root" && cargo generate-lockfile)
-    fi
+    printf 'generating lockfile in %s\n' "$root"
+    (cd "$root" && cargo generate-lockfile)
     exit 0
   fi
   root="$(dirname "$root")"
