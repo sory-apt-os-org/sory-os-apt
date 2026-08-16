@@ -43,6 +43,8 @@ EPOCH_CRATE_DIRS: dict[str, str] = {
     "cctk": "cosmic-protocols/client-toolkit",
     "freedesktop-icons": "freedesktop-icons",
     "cosmic-freedesktop-icons": "freedesktop-icons",
+    "xdg-shell-wrapper-config": "xdg-shell-wrapper/xdg-shell-wrapper-config",
+    "xdg-shell-wrapper": "xdg-shell-wrapper",
 }
 
 DBUS_SETTINGS_GIT = re.compile(
@@ -77,6 +79,33 @@ VIRTUAL_EPOCH_REPOS = frozenset(
 FREEDESKTOP_ICONS_GIT = re.compile(
     r"https://github\.com/pop-os/freedesktop-icons(?:\.git)?"
 )
+
+POP_OS_VENDOR_GIT_REPLACEMENTS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"https://github\.com/pop-os/winit(?:\.git)?"), "https://github.com/sory-os-org/winit"),
+    (
+        re.compile(r"https://github\.com/pop-os/smithay-clipboard(?:\.git)?"),
+        "https://github.com/sory-os-org/smithay-clipboard",
+    ),
+    (
+        re.compile(r"https://github\.com/pop-os/dbus-settings-bindings(?:\.git)?"),
+        "https://github.com/sory-os-org/dbus-settings-bindings",
+    ),
+    (
+        re.compile(r"https://github\.com/pop-os/xdg-shell-wrapper(?:\.git)?"),
+        "https://github.com/sory-os-org/xdg-shell-wrapper",
+    ),
+)
+
+
+def migrate_pop_os_vendor_git_urls(text: str) -> str:
+    for pattern, replacement in POP_OS_VENDOR_GIT_REPLACEMENTS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
+def is_workspace_root(cargo_file: Path) -> bool:
+    return "[workspace]" in cargo_file.read_text() and "members" in cargo_file.read_text()
+
 
 POP_OS_EPOCH_GIT = re.compile(
     r"https://github\.com/pop-os/([A-Za-z0-9_-]+)(?:\.git)?"
@@ -379,14 +408,17 @@ def fix_workspace_table_sections(
 
 def rewrite_file(cargo_file: Path, libcosmic: Path, cosmic_epoch: Path) -> bool:
     original = cargo_file.read_text()
-    updated = rewrite_inline_tables(original, cargo_file, libcosmic, cosmic_epoch)
+    updated = migrate_pop_os_vendor_git_urls(original)
+    updated = rewrite_inline_tables(updated, cargo_file, libcosmic, cosmic_epoch)
     updated = rewrite_table_sections(updated, cargo_file, libcosmic, cosmic_epoch)
     updated = fix_workspace_path_deps(updated, cargo_file, cosmic_epoch)
     updated = fix_workspace_table_sections(updated, cargo_file, cosmic_epoch)
     changed = updated != original
     if changed:
         cargo_file.write_text(updated)
-    patched = ensure_libcosmic_patches(cargo_file, libcosmic)
+    patched = False
+    if is_workspace_root(cargo_file):
+        patched = ensure_libcosmic_patches(cargo_file, libcosmic)
     return changed or patched
 
 
