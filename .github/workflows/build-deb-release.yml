@@ -229,7 +229,8 @@ jobs:
             libflatpak-dev libpolkit-agent-1-dev \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
             mold nasm \
-            imagemagick fonts-open-sans meson patchelf b3sum jq
+            imagemagick fonts-open-sans meson patchelf b3sum jq \
+            sassc ninja-build libparted-dev
           rustup default stable
           rustup toolchain install 1.93 --profile minimal
           cargo install just --locked
