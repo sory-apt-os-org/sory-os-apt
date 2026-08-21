@@ -145,6 +145,9 @@ jobs:
             echo "no_deb=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          if [ "${{ matrix.component }}" = "distinst" ]; then
+            "$GITHUB_WORKSPACE/soryos-apt/scripts/patch-distinst-noble.sh" "$PWD"
+          fi
           "$GITHUB_WORKSPACE/soryos-apt/scripts/ensure-cargo-lock.sh" "$PWD"
           dpkg-buildpackage -us -uc -b -d
           echo "no_deb=false" >> "$GITHUB_OUTPUT"
