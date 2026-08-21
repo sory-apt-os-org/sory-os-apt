@@ -1,8 +1,9 @@
 name: Build & Publish SoryOS APT
 
+# Full matrix rebuild (~28 COSMIC jobs). Do NOT run on every push — use
+# update-deb-release.yml for incremental Release updates, or build-deb-release.yml
+# with explicit component list.
 on:
-  push:
-    branches: [main]
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
