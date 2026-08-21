@@ -52,6 +52,7 @@ require_tool jq
 require_tool b3sum
 require_tool openssl
 require_tool dpkg-scanpackages
+require_tool apt-ftparchive
 require_tool gzip
 
 mkdir -p "$OUTPUT_DIR/pool/$SUITE" "$OUTPUT_DIR/dists/$SUITE/main/binary-amd64" "$OUTPUT_DIR/keyrings"
@@ -139,14 +140,27 @@ if [[ ! -f "$OUTPUT_DIR/keyrings/soryos-archive-keyring.gpg" ]] \
   verify_blake3 "$OUTPUT_DIR/keyrings/$key_name" "$key_blake3"
 fi
 
-if [[ ! -f "$OUTPUT_DIR/dists/$SUITE/main/binary-amd64/Packages.gz" ]]; then
-  (
-    cd "$OUTPUT_DIR"
-    dpkg-scanpackages -a amd64 "pool/$SUITE" /dev/null \
-      > "dists/$SUITE/main/binary-amd64/Packages"
-    gzip -9cn "dists/$SUITE/main/binary-amd64/Packages" \
-      > "dists/$SUITE/main/binary-amd64/Packages.gz"
-  )
-fi
+# Pages dists/ can lag behind index.json (partial CI). Rebuild metadata from pool.
+(
+  cd "$OUTPUT_DIR"
+  rm -f \
+    "dists/$SUITE/Release" \
+    "dists/$SUITE/Release.gpg" \
+    "dists/$SUITE/InRelease"
+  dpkg-scanpackages -a amd64 "pool/$SUITE" /dev/null \
+    > "dists/$SUITE/main/binary-amd64/Packages"
+  gzip -9cn "dists/$SUITE/main/binary-amd64/Packages" \
+    > "dists/$SUITE/main/binary-amd64/Packages.gz"
+  apt-ftparchive \
+    -o APT::FTPArchive::Release::Origin=SoryOS \
+    -o APT::FTPArchive::Release::Label=SoryOS \
+    -o APT::FTPArchive::Release::Suite="$SUITE" \
+    -o APT::FTPArchive::Release::Codename="$SUITE" \
+    -o APT::FTPArchive::Release::Architectures=amd64 \
+    -o APT::FTPArchive::Release::Components=main \
+    -o "APT::FTPArchive::Release::Description=SoryOS APT Repository" \
+    release "dists/$SUITE" > "dists/$SUITE/Release"
+  printf 'regenerated dists/%s from %d .deb file(s)\n' "$SUITE" "${#WANTED[@]}"
+)
 
 printf 'local APT mirror ready at %s (Pages catalog + Release binaries)\n' "$OUTPUT_DIR"

@@ -2,6 +2,7 @@ Package: soryos-sound-theme
 Version: 0.1.0
 Architecture: all
 Maintainer: SoryOS Team <maintainers@soryos.local>
+Provides: pop-sound-theme
 Depends: sound-theme-freedesktop
 Description: SoryOS sound theme package
  This package defines the SoryOS desktop sound theme boundary. It currently

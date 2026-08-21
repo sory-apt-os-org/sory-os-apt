@@ -1,0 +1,9 @@
+Package: soryos-pop-compat
+Version: 0.1.0
+Architecture: all
+Maintainer: SoryOS Team <maintainers@soryos.local>
+Depends: soryos-fonts, soryos-appstream-data, soryos-sound-theme
+Provides: pop-fonts, appstream-data-pop, pop-sound-theme
+Description: SoryOS compatibility aliases for legacy Pop package names
+ Transitional metapackage so COSMIC packages built against Pop names
+ resolve on SoryOS until their Depends fields are renamed upstream.

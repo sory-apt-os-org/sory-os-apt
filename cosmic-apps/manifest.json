@@ -13,7 +13,7 @@
     }
   },
   "generated_from": "redox/recipes/cosmic + build-deb-release.yml matrix",
-  "count": 29,
+  "count": 31,
   "components": [
     { "name": "cosmic-applets", "build": "dpkg-buildpackage", "has_debian": true },
     { "name": "cosmic-applibrary", "build": "dpkg-buildpackage", "has_debian": true },
@@ -42,7 +42,9 @@
     { "name": "cosmic-wallpapers", "build": "dpkg-buildpackage", "has_debian": true },
     { "name": "cosmic-workspaces-epoch", "build": "dpkg-buildpackage", "has_debian": true },
     { "name": "cosmic-sound-theme", "build": "meson", "has_debian": false },
-    { "name": "soryos-launcher", "build": "dpkg-buildpackage", "has_debian": true },
+    { "name": "pop-launcher", "build": "dpkg-buildpackage", "has_debian": true },
+    { "name": "adw-gtk3", "build": "dpkg-buildpackage", "has_debian": true },
+    { "name": "distinst", "build": "dpkg-buildpackage", "has_debian": true },
     { "name": "simple-wrapper", "build": "dpkg-buildpackage", "has_debian": true },
     { "name": "xdg-desktop-portal-cosmic", "build": "dpkg-buildpackage", "has_debian": true }
   ]

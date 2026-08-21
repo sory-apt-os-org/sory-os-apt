@@ -127,6 +127,7 @@ build_package soryos-archive-keyring
 build_package soryos-system-lock
 build_package soryos-identity
 build_package soryos-appstream-data
+build_package soryos-pop-compat
 build_package soryos-icon-theme
 build_package soryos-sound-theme
 build_package soryos-hp-vendor
