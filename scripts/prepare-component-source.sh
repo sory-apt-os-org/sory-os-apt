@@ -8,6 +8,7 @@ if [[ $# -lt 2 ]]; then
   exit 2
 fi
 
+mkdir -p "$1"
 WORK_DIR="$(cd "$1" && pwd)"
 COMPONENT="$2"
 EPOCH_DIR="$WORK_DIR/cosmic-epoch"
