@@ -82,14 +82,14 @@ fi
 
 # GTK theme required by cosmic-settings-daemon (not in cosmic-epoch submodules).
 if [[ ! -f "$WORK_DIR/cosmic-epoch/adw-gtk3/debian/control" ]]; then
-  ADW_GTK3_REPO="${SORYOS_ADW_GTK3_REPO:-https://github.com/pop-os/adw-gtk3.git}"
+  ADW_GTK3_REPO="${SORYOS_ADW_GTK3_REPO:-https://github.com/sory-os-org/adw-gtk3.git}"
   ADW_GTK3_REF="${SORYOS_ADW_GTK3_REF:-master}"
   sync_repo "$ADW_GTK3_REPO" "$ADW_GTK3_REF" "$WORK_DIR/cosmic-epoch/adw-gtk3"
 fi
 
 # Live ISO installer (distinst + libdistinst); sources only, published via SoryOS Release.
 if [[ ! -f "$WORK_DIR/cosmic-epoch/distinst/debian/control" ]]; then
-  DISTINST_REPO="${SORYOS_DISTINST_REPO:-https://github.com/pop-os/distinst.git}"
+  DISTINST_REPO="${SORYOS_DISTINST_REPO:-https://github.com/sory-os-org/distinst.git}"
   DISTINST_REF="${SORYOS_DISTINST_REF:-master}"
   sync_repo "$DISTINST_REPO" "$DISTINST_REF" "$WORK_DIR/cosmic-epoch/distinst"
 fi
