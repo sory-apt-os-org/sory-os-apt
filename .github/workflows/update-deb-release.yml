@@ -16,7 +16,7 @@ on:
 
 concurrency:
   group: update-deb-release-soryos
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -83,8 +83,10 @@ jobs:
         with:
           path: soryos-apt
 
-      - name: Prepare cosmic sources (GitLab recipes)
-        run: soryos-apt/scripts/prepare-cosmic-sources.sh "$SORYOS_COSMIC_WORK"
+      - name: Prepare component source (standalone or full tree)
+        run: |
+          chmod +x soryos-apt/scripts/prepare-component-source.sh
+          soryos-apt/scripts/prepare-component-source.sh "$SORYOS_COSMIC_WORK" "${{ matrix.component }}"
 
       - name: Install build dependencies
         run: |
