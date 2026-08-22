@@ -1,0 +1,338 @@
+# =============================================================================
+# SoryOS - Build cosmic-utils community apps as .deb and publish to GitHub Release
+# =============================================================================
+# Separate CI from the official cosmic-epoch desktop stack. Sources are cloned
+# from sory-os-org forks (cosmic-utils mirrors), built with libcosmic, signed,
+# and published as an immutable GitHub Release on sory-os-org/sory-os-apt.
+# =============================================================================
+
+name: Build cosmic-utils Debian Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      components:
+        description: 'Components to build (space-separated, "phase1", or "all")'
+        required: false
+        default: 'phase1'
+      force_rebuild:
+        description: 'Force rebuild all selected components'
+        required: false
+        type: boolean
+        default: false
+      tag:
+        description: 'Immutable GitHub Release tag, e.g. soryos-cosmic-utils-2026.08.22'
+        required: true
+      release_binary:
+        description: 'Copy unchanged .deb from base release (1) or rebuild all selected (0)'
+        required: false
+        default: '1'
+      base_release_tag:
+        description: 'Existing Release used as binary cache (cosmic-utils or desktop deb)'
+        required: false
+        default: 'soryos-deb-test-2026.08.13'
+      merge_desktop_release:
+        description: 'Also copy all packages from base desktop release into this Release'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  DEBIAN_FRONTEND: noninteractive
+  GITHUB_TOKEN: ${{ github.token }}
+  SORYOS_APT_REPO: sory-os-org/sory-os-apt
+  SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
+  SORYOS_LIBCOSMIC_REF: main
+  SORYOS_COSMIC_UTILS_WORK: /tmp/soryos-cosmic-utils
+
+jobs:
+  detect-changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.detect.outputs.components }}
+      components_json: ${{ steps.detect.outputs.components_json }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Detect component changes
+        id: detect
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+
+          manifest = json.load(open("soryos-apt/cosmic-apps/cosmic-utils-manifest.json"))
+          all_components = [c["name"] for c in manifest["components"]]
+          phase1 = [c["name"] for c in manifest["components"] if c.get("phase") == 1]
+          requested = "${{ inputs.components }}".strip()
+          if requested in ("", "all"):
+              selected = all_components
+          elif requested == "phase1":
+              selected = phase1
+          else:
+              selected = requested.split()
+              unknown = sorted(set(selected) - set(all_components))
+              if unknown:
+                  raise SystemExit(f"Unknown component(s): {', '.join(unknown)}")
+
+          base_tag = "${{ inputs.base_release_tag }}"
+          repo = "${{ env.SORYOS_APT_REPO }}"
+          index_url = f"https://github.com/{repo}/releases/download/{base_tag}/index.json"
+          release_index = {}
+          try:
+              with urllib.request.urlopen(index_url, timeout=60) as resp:
+                  release_index = json.load(resp)
+          except Exception:
+              release_index = {}
+
+          def package_name(entry):
+              return entry.get("package", entry["name"])
+
+          def indexed_version(pkg):
+              indexed = release_index.get("packages", {}).get(pkg, {}).get("deb")
+              if not indexed:
+                  return None
+              m = re.match(rf"^{re.escape(pkg)}_(.+)_(?:amd64|all)\.deb$", indexed["name"])
+              return m.group(1) if m else None
+
+          changed = []
+          for entry in manifest["components"]:
+              name = entry["name"]
+              if name not in selected:
+                  continue
+              pkg = package_name(entry)
+              if "${{ inputs.force_rebuild }}" == "true":
+                  changed.append(name)
+                  continue
+              if "${{ inputs.release_binary }}" != "1":
+                  changed.append(name)
+                  continue
+              if indexed_version(pkg) is None:
+                  changed.append(name)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"components_json={json.dumps(changed)}\n")
+              if changed:
+                  out.write(f"components={' '.join(changed)}\n")
+                  out.write("has_changes=true\n")
+              else:
+                  out.write("components=\n")
+                  out.write("has_changes=false\n")
+          PY
+
+  build:
+    name: ${{ matrix.component }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true' && needs.detect-changes.outputs.components != ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJson(needs.detect-changes.outputs.components_json) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Prepare cosmic-utils sources
+        run: soryos-apt/scripts/prepare-cosmic-utils-sources.sh "$SORYOS_COSMIC_UTILS_WORK" "${{ matrix.component }}"
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-cu-${{ matrix.component }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-cu-
+            ${{ runner.os }}-cargo-
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential pkg-config cmake just \
+            rustup dpkg-dev \
+            libwayland-dev libxkbcommon-dev libglib2.0-dev \
+            libclang-dev libpipewire-0.3-dev libudev-dev \
+            libinput-dev libgbm-dev libseat-dev libsystemd-dev \
+            libdbus-1-dev libpam0g-dev libssl-dev libzstd-dev \
+            libpixman-1-dev libfontconfig-dev libfreetype-dev \
+            libegl1-mesa-dev libxcb1-dev libdisplay-info-dev \
+            libdav1d-dev libexpat1-dev \
+            libflatpak-dev libpolkit-agent-1-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libsqlite3-dev libqalculate-dev libheif-dev libturbojpeg0-dev \
+            mold nasm imagemagick fonts-open-sans patchelf
+          rustup default stable
+          rustup toolchain install 1.93 --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Build .deb
+        run: |
+          mkdir -p soryos-apt/release-out/pool/stable
+          soryos-apt/scripts/build-cosmic-utils-deb.sh \
+            "$SORYOS_COSMIC_UTILS_WORK" \
+            "${{ matrix.component }}" \
+            "$GITHUB_WORKSPACE/soryos-apt/release-out/pool/stable"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-cu-${{ matrix.component }}
+          path: soryos-apt/release-out/pool/stable/*.deb
+          retention-days: 2
+
+  publish:
+    name: Publish immutable GitHub Release
+    needs: [detect-changes, build]
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: soryos-apt
+
+      - name: Install publishing tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils dpkg-dev gnupg gzip b3sum jq openssl curl
+
+      - name: Download built .deb artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: soryos-apt/release-out/pool/stable
+          pattern: "deb-cu-*"
+          merge-multiple: true
+
+      - name: Copy unchanged packages from base release
+        if: inputs.release_binary == '1'
+        env:
+          BASE_TAG: ${{ inputs.base_release_tag }}
+        run: |
+          cd soryos-apt
+          INDEX_URL="https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${BASE_TAG}/index.json"
+          mkdir -p release-out/pool/stable
+          curl -fsSL "$INDEX_URL" -o /tmp/base-index.json
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import subprocess
+
+          manifest = json.load(open("cosmic-apps/cosmic-utils-manifest.json"))
+          pkg_by_component = {c["name"]: c.get("package", c["name"]) for c in manifest["components"]}
+          changed = "${{ needs.detect-changes.outputs.components }}".split()
+          changed_pkgs = {pkg_by_component[name] for name in changed if name in pkg_by_component}
+          merge_desktop = "${{ inputs.merge_desktop_release }}" == "true"
+          index = json.load(open("/tmp/base-index.json"))
+          out = pathlib.Path("release-out/pool/stable")
+          for package, files in index.get("packages", {}).items():
+              deb = files.get("deb")
+              if not deb:
+                  continue
+              if package in changed_pkgs:
+                  continue
+              if not merge_desktop and package not in pkg_by_component.values():
+                  continue
+              dest = out / deb["name"]
+              if dest.exists():
+                  continue
+              print(f"copy unchanged {deb['name']}")
+              subprocess.check_call(["curl", "-fsSL", deb["url"], "-o", str(dest)])
+          PY
+
+      - name: Generate APT metadata and signing key export
+        env:
+          SORYOS_GPG_PRIVATE_KEY: ${{ secrets.SORYOS_GPG_PRIVATE_KEY }}
+          SORYOS_INDEX_PRIVATE_KEY_PEM: ${{ secrets.SORYOS_INDEX_PRIVATE_KEY_PEM }}
+        run: |
+          cd soryos-apt
+          mkdir -p pool/stable dists/stable/main/binary-amd64 keyrings release-out
+          cp release-out/pool/stable/*.deb pool/stable/
+          export SORYOS_SUITES=stable
+          ./scripts/ci-import-signing-key.sh
+          ./scripts/generate-index.sh
+          ./scripts/sign-repository.sh
+          cp keyrings/soryos-archive-keyring.gpg release-out/
+          cp dists/stable/Release release-out/
+          cp dists/stable/Release.gpg release-out/
+          cp dists/stable/InRelease release-out/
+          cp dists/stable/main/binary-amd64/Packages release-out/
+          cp dists/stable/main/binary-amd64/Packages.gz release-out/
+          cp pool/stable/*.deb release-out/
+          python3 scripts/generate-release-index.py \
+            release-out \
+            "${{ inputs.tag }}" \
+            "${{ env.SORYOS_APT_REPO }}" \
+            release-out/index.json \
+            "https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${{ inputs.tag }}" \
+            release-out/soryos-archive-keyring.gpg
+          test -n "${SORYOS_INDEX_PRIVATE_KEY_PEM:-}" || {
+            echo "Missing SORYOS_INDEX_PRIVATE_KEY_PEM GitHub secret" >&2
+            exit 1
+          }
+          umask 077
+          printf '%s\n' "$SORYOS_INDEX_PRIVATE_KEY_PEM" > index-signing-key.pem
+          ./scripts/sign-release-index.sh release-out/index.json index-signing-key.pem
+          openssl pkey -in index-signing-key.pem -pubout \
+            -out release-out/index-signing-key.pub.pem
+          openssl pkey -pubin -in release-out/index-signing-key.pub.pem \
+            -outform DER | tail -c 32 | od -An -tx1 -v | tr -d ' \n' \
+            > release-out/index-signing-key.pub.hex
+          rm -f index-signing-key.pem
+
+      - name: Ensure immutable Release tag is unused
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ inputs.tag }}" --repo "${{ env.SORYOS_APT_REPO }}" >/dev/null 2>&1; then
+            echo "Release tag already exists; refusing to overwrite immutable artifacts" >&2
+            exit 1
+          fi
+
+      - name: Upload Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd soryos-apt/release-out
+          gh release create "${{ inputs.tag }}" \
+            --repo "${{ env.SORYOS_APT_REPO }}" \
+            --title "SoryOS cosmic-utils packages (${{ inputs.tag }})" \
+            --notes "Community cosmic-utils apps packaged for SoryOS. Built components: ${{ needs.detect-changes.outputs.components }}"
+          while IFS= read -r -d '' asset; do
+            uploaded=false
+            for attempt in 1 2 3 4 5; do
+              if gh release upload "${{ inputs.tag }}" "$asset" --repo "${{ env.SORYOS_APT_REPO }}"; then
+                uploaded=true
+                break
+              fi
+              sleep $((attempt * 10))
+            done
+            if [[ "$uploaded" != true ]]; then
+              echo "Unable to upload Release asset: $asset" >&2
+              exit 1
+            fi
+            sleep 1
+          done < <(find . -maxdepth 1 -type f -print0 | sort -z)
+
+      - name: Trigger Pages catalog publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run publish-pages.yml \
+            --repo "${{ env.SORYOS_APT_REPO }}" \
+            -f release_tag="${{ inputs.tag }}"
