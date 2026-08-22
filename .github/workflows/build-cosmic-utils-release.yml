@@ -22,7 +22,8 @@ on:
         default: false
       tag:
         description: 'Immutable GitHub Release tag, e.g. soryos-cosmic-utils-2026.08.22'
-        required: true
+        required: false
+        default: 'soryos-cosmic-utils-2026.08.22'
       release_binary:
         description: 'Copy unchanged .deb from base release (1) or rebuild all selected (0)'
         required: false

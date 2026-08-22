@@ -6,6 +6,11 @@ on:
       release_tag:
         description: 'Release tag whose signed index is published to Pages'
         required: true
+      trigger_cosmic_utils:
+        description: 'Also run Build cosmic-utils Debian Release (phase1)'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -16,6 +21,28 @@ env:
   SORYOS_APT_REPO: sory-os-org/sory-os-apt
 
 jobs:
+  trigger-cosmic-utils:
+    name: Trigger cosmic-utils Debian build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.trigger_cosmic_utils
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch Build cosmic-utils Debian Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run build-cosmic-utils-release.yml \
+            --repo "${{ env.SORYOS_APT_REPO }}" \
+            --ref main \
+            -f components=phase1 \
+            -f tag=soryos-cosmic-utils-2026.08.22 \
+            -f base_release_tag=soryos-deb-test-2026.08.13 \
+            -f merge_desktop_release=true \
+            -f release_binary=1 \
+            -f force_rebuild=false
+
   publish-pages:
     name: Publish index + APT metadata to GitHub Pages
     runs-on: ubuntu-latest
