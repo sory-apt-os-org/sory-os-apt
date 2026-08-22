@@ -36,6 +36,14 @@ on:
         required: false
         type: boolean
         default: true
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-cosmic-utils-release.yml'
+      - 'cosmic-apps/cosmic-utils-manifest.json'
+      - 'scripts/prepare-cosmic-utils-sources.sh'
+      - 'scripts/build-cosmic-utils-deb.sh'
+      - 'scripts/rewrite-cosmic-utils-deps.*'
 
 permissions:
   contents: read
@@ -48,6 +56,12 @@ env:
   SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
   SORYOS_LIBCOSMIC_REF: main
   SORYOS_COSMIC_UTILS_WORK: /tmp/soryos-cosmic-utils
+  SORYOS_CU_COMPONENTS: ${{ github.event.inputs.components || 'phase1' }}
+  SORYOS_CU_FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || false }}
+  SORYOS_CU_TAG: ${{ github.event.inputs.tag || 'soryos-cosmic-utils-2026.08.22' }}
+  SORYOS_CU_RELEASE_BINARY: ${{ github.event.inputs.release_binary || '1' }}
+  SORYOS_CU_BASE_TAG: ${{ github.event.inputs.base_release_tag || 'soryos-deb-test-2026.08.13' }}
+  SORYOS_CU_MERGE_DESKTOP: ${{ github.event.inputs.merge_desktop_release != 'false' }}
 
 jobs:
   detect-changes:
@@ -64,6 +78,11 @@ jobs:
 
       - name: Detect component changes
         id: detect
+        env:
+          SORYOS_CU_COMPONENTS: ${{ env.SORYOS_CU_COMPONENTS }}
+          SORYOS_CU_FORCE_REBUILD: ${{ env.SORYOS_CU_FORCE_REBUILD }}
+          SORYOS_CU_RELEASE_BINARY: ${{ env.SORYOS_CU_RELEASE_BINARY }}
+          SORYOS_CU_BASE_TAG: ${{ env.SORYOS_CU_BASE_TAG }}
         run: |
           python3 - <<'PY'
           import json
@@ -74,7 +93,7 @@ jobs:
           manifest = json.load(open("soryos-apt/cosmic-apps/cosmic-utils-manifest.json"))
           all_components = [c["name"] for c in manifest["components"]]
           phase1 = [c["name"] for c in manifest["components"] if c.get("phase") == 1]
-          requested = "${{ inputs.components }}".strip()
+          requested = os.environ.get("SORYOS_CU_COMPONENTS", "phase1").strip()
           if requested in ("", "all"):
               selected = all_components
           elif requested == "phase1":
@@ -85,7 +104,7 @@ jobs:
               if unknown:
                   raise SystemExit(f"Unknown component(s): {', '.join(unknown)}")
 
-          base_tag = "${{ inputs.base_release_tag }}"
+          base_tag = os.environ.get("SORYOS_CU_BASE_TAG", "soryos-deb-test-2026.08.13")
           repo = "${{ env.SORYOS_APT_REPO }}"
           index_url = f"https://github.com/{repo}/releases/download/{base_tag}/index.json"
           release_index = {}
@@ -111,10 +130,10 @@ jobs:
               if name not in selected:
                   continue
               pkg = package_name(entry)
-              if "${{ inputs.force_rebuild }}" == "true":
+              if os.environ.get("SORYOS_CU_FORCE_REBUILD", "false") == "true":
                   changed.append(name)
                   continue
-              if "${{ inputs.release_binary }}" != "1":
+              if os.environ.get("SORYOS_CU_RELEASE_BINARY", "1") != "1":
                   changed.append(name)
                   continue
               if indexed_version(pkg) is None:
@@ -220,9 +239,11 @@ jobs:
           merge-multiple: true
 
       - name: Copy unchanged packages from base release
-        if: inputs.release_binary == '1'
+        if: env.SORYOS_CU_RELEASE_BINARY == '1'
         env:
-          BASE_TAG: ${{ inputs.base_release_tag }}
+          BASE_TAG: ${{ env.SORYOS_CU_BASE_TAG }}
+        env:
+          SORYOS_CU_MERGE_DESKTOP: ${{ env.SORYOS_CU_MERGE_DESKTOP }}
         run: |
           cd soryos-apt
           INDEX_URL="https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${BASE_TAG}/index.json"
@@ -237,7 +258,7 @@ jobs:
           pkg_by_component = {c["name"]: c.get("package", c["name"]) for c in manifest["components"]}
           changed = "${{ needs.detect-changes.outputs.components }}".split()
           changed_pkgs = {pkg_by_component[name] for name in changed if name in pkg_by_component}
-          merge_desktop = "${{ inputs.merge_desktop_release }}" == "true"
+          merge_desktop = os.environ.get("SORYOS_CU_MERGE_DESKTOP", "true") == "true"
           index = json.load(open("/tmp/base-index.json"))
           out = pathlib.Path("release-out/pool/stable")
           for package, files in index.get("packages", {}).items():
@@ -276,10 +297,10 @@ jobs:
           cp pool/stable/*.deb release-out/
           python3 scripts/generate-release-index.py \
             release-out \
-            "${{ inputs.tag }}" \
+            "${{ env.SORYOS_CU_TAG }}" \
             "${{ env.SORYOS_APT_REPO }}" \
             release-out/index.json \
-            "https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${{ inputs.tag }}" \
+            "https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${{ env.SORYOS_CU_TAG }}" \
             release-out/soryos-archive-keyring.gpg
           test -n "${SORYOS_INDEX_PRIVATE_KEY_PEM:-}" || {
             echo "Missing SORYOS_INDEX_PRIVATE_KEY_PEM GitHub secret" >&2
@@ -299,7 +320,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "${{ inputs.tag }}" --repo "${{ env.SORYOS_APT_REPO }}" >/dev/null 2>&1; then
+          if gh release view "${{ env.SORYOS_CU_TAG }}" --repo "${{ env.SORYOS_APT_REPO }}" >/dev/null 2>&1; then
             echo "Release tag already exists; refusing to overwrite immutable artifacts" >&2
             exit 1
           fi
@@ -309,14 +330,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd soryos-apt/release-out
-          gh release create "${{ inputs.tag }}" \
+          gh release create "${{ env.SORYOS_CU_TAG }}" \
             --repo "${{ env.SORYOS_APT_REPO }}" \
-            --title "SoryOS cosmic-utils packages (${{ inputs.tag }})" \
+            --title "SoryOS cosmic-utils packages (${{ env.SORYOS_CU_TAG }})" \
             --notes "Community cosmic-utils apps packaged for SoryOS. Built components: ${{ needs.detect-changes.outputs.components }}"
           while IFS= read -r -d '' asset; do
             uploaded=false
             for attempt in 1 2 3 4 5; do
-              if gh release upload "${{ inputs.tag }}" "$asset" --repo "${{ env.SORYOS_APT_REPO }}"; then
+              if gh release upload "${{ env.SORYOS_CU_TAG }}" "$asset" --repo "${{ env.SORYOS_APT_REPO }}"; then
                 uploaded=true
                 break
               fi
@@ -335,4 +356,4 @@ jobs:
         run: |
           gh workflow run publish-pages.yml \
             --repo "${{ env.SORYOS_APT_REPO }}" \
-            -f release_tag="${{ inputs.tag }}"
+            -f release_tag="${{ env.SORYOS_CU_TAG }}"
