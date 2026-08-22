@@ -44,6 +44,8 @@ on:
       - 'scripts/prepare-cosmic-utils-sources.sh'
       - 'scripts/build-cosmic-utils-deb.sh'
       - 'scripts/rewrite-cosmic-utils-deps.*'
+  repository_dispatch:
+    types: [build-cosmic-utils]
 
 permissions:
   contents: read
@@ -56,12 +58,12 @@ env:
   SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
   SORYOS_LIBCOSMIC_REF: main
   SORYOS_COSMIC_UTILS_WORK: /tmp/soryos-cosmic-utils
-  SORYOS_CU_COMPONENTS: ${{ github.event.inputs.components || 'phase1' }}
-  SORYOS_CU_FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || false }}
-  SORYOS_CU_TAG: ${{ github.event.inputs.tag || 'soryos-cosmic-utils-2026.08.22' }}
-  SORYOS_CU_RELEASE_BINARY: ${{ github.event.inputs.release_binary || '1' }}
-  SORYOS_CU_BASE_TAG: ${{ github.event.inputs.base_release_tag || 'soryos-deb-test-2026.08.13' }}
-  SORYOS_CU_MERGE_DESKTOP: ${{ github.event.inputs.merge_desktop_release != 'false' }}
+  SORYOS_CU_COMPONENTS: ${{ github.event.inputs.components || github.event.client_payload.components || 'phase1' }}
+  SORYOS_CU_FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || github.event.client_payload.force_rebuild || false }}
+  SORYOS_CU_TAG: ${{ github.event.inputs.tag || github.event.client_payload.tag || 'soryos-cosmic-utils-2026.08.22' }}
+  SORYOS_CU_RELEASE_BINARY: ${{ github.event.inputs.release_binary || github.event.client_payload.release_binary || '1' }}
+  SORYOS_CU_BASE_TAG: ${{ github.event.inputs.base_release_tag || github.event.client_payload.base_release_tag || 'soryos-deb-test-2026.08.13' }}
+  SORYOS_CU_MERGE_DESKTOP: ${{ (github.event.inputs.merge_desktop_release || github.event.client_payload.merge_desktop_release || 'true') != 'false' }}
 
 jobs:
   detect-changes:
