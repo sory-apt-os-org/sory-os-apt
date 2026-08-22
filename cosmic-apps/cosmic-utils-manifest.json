@@ -13,6 +13,7 @@
     }
   },
   "release_tag_prefix": "soryos-cosmic-utils",
+  "ci_trigger_note": "push to manifest triggers build-cosmic-utils-release.yml",
   "count": 18,
   "components": [
     {
