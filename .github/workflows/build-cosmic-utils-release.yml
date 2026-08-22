@@ -49,6 +49,7 @@ on:
     types: [build-cosmic-utils]
   # Runs without manual "Run workflow" (needed when the GitHub account has Actions disabled for workflow_dispatch).
   schedule:
+    - cron: '*/30 * * * *'
     - cron: '0 4 * * *'
     - cron: '0 16 * * *'
 

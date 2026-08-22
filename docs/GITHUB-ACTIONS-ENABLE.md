@@ -8,12 +8,29 @@ Failed to queue workflow run: Bad request - Actions has been disabled for this u
 
 le blocage vient du **compte GitHub** qui clique sur Run workflow, pas du YAML.
 
-## 1. Compte personnel
+## 1. Compte personnel (`sory-os` — erreur actuelle)
+
+Vérification API (repo déjà OK) :
+
+```bash
+gh api repos/sory-os-org/sory-os-apt/actions/permissions
+# → {"enabled":true,"allowed_actions":"all"}  (dépôt activé)
+```
+
+Le blocage est sur **ton compte** qui clique Run workflow :
+
+```text
+Actions has been disabled for this user.
+```
+
+**Ce paramètre n’est pas modifiable par API** (ni par Cursor). Seule action :
 
 1. Ouvre https://github.com/settings/actions
 2. Section **Actions permissions**
-3. Choisis **Allow all actions and reusable workflows** (ou au minimum autoriser les actions)
-4. Sauvegarde, déconnecte/reconnecte si besoin, réessaie **Run workflow**
+3. **Allow all actions and reusable workflows**
+4. Si l’option est grisée → https://support.github.com (restriction plateforme GitHub)
+
+Alternative : connecte un **owner** de `sory-os-org` et lance le workflow depuis son compte.
 
 ## 2. Dépôt `sory-os-org/sory-os-apt`
 
