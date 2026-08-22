@@ -30,7 +30,13 @@ require_tool dpkg-deb
 
 mkdir -p "$OUT_DIR"
 
-read -r BUILD_KIND PACKAGE_NAME VERSION ARCH DESCRIPTION BINARY_NAME <<META
+{
+  read -r BUILD_KIND
+  read -r PACKAGE_NAME
+  read -r VERSION
+  read -r ARCH
+  read -r BINARY_NAME
+} <<META
 $(python3 - "$MANIFEST" "$COMPONENT" "$COMPONENT_DIR" <<'PY'
 import json
 import re
@@ -61,13 +67,21 @@ print(
     package,
     version,
     arch,
-    entry.get("description", entry["name"]),
     binary,
     sep="\n",
 )
 PY
 )
 META
+
+DESCRIPTION="$(python3 - "$MANIFEST" "$COMPONENT" <<'PY'
+import json, sys
+manifest = json.load(open(sys.argv[1]))
+name = sys.argv[2]
+entry = next(c for c in manifest["components"] if c["name"] == name)
+print(entry.get("description", entry["name"]))
+PY
+)"
 
 if [[ ! -d "$COMPONENT_DIR" ]]; then
   printf 'component directory not found: %s\n' "$COMPONENT_DIR" >&2
@@ -80,17 +94,17 @@ CONTROL_DIR="$PKG_ROOT/DEBIAN"
 mkdir -p "$CONTROL_DIR"
 
 write_control() {
-  cat >"$CONTROL_DIR/control" <<EOF
-Package: $PACKAGE_NAME
-Version: $VERSION
-Section: utils
-Priority: optional
-Architecture: $ARCH
-Maintainer: SoryOS Maintainers <maintainers@soryos.local>
-Depends: \${misc:Depends}
-Description: $DESCRIPTION
- Community COSMIC application packaged for SoryOS.
-EOF
+  {
+    printf '%s\n' \
+      "Package: $PACKAGE_NAME" \
+      "Version: $VERSION" \
+      "Section: utils" \
+      "Priority: optional" \
+      "Architecture: $ARCH" \
+      "Maintainer: SoryOS Maintainers <maintainers@soryos.local>" \
+      "Description: $DESCRIPTION"
+    printf ' %s\n' "Community COSMIC application packaged for SoryOS."
+  } >"$CONTROL_DIR/control"
 }
 
 build_data_themes() {
