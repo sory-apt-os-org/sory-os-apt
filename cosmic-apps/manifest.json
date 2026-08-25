@@ -1,14 +1,15 @@
 {
-  "repository": "sory-os-org/sory-os-apt",
-  "pages_base_url": "https://sory-os-org.github.io/sory-os-apt",
+  "repository": "sory-os.org/sory-os-apt",
+  "pages_base_url": "https://sory-os-org.gitlab.io/sory-os-apt",
+  "platform": "gitlab",
   "sources": {
     "cosmic_epoch": {
-      "git": "https://github.com/sory-os-org/cosmic-epoch.git",
+      "git": "https://gitlab.com/sory-os.org/cosmic-epoch.git",
       "branch": "main",
       "layout": "monorepo with libcosmic sibling (redox recipe model)"
     },
     "libcosmic": {
-      "git": "https://github.com/sory-os-org/libcosmic.git",
+      "git": "https://gitlab.com/sory-os.org/libcosmic.git",
       "branch": "main"
     }
   },

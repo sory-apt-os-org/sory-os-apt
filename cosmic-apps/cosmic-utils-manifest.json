@@ -1,13 +1,14 @@
 {
-  "repository": "sory-os-org/sory-os-apt",
-  "source_org": "sory-os-org",
+  "repository": "sory-os.org/sory-os-apt",
+  "source_org": "sory-os.org",
+  "platform": "gitlab",
   "libcosmic": {
-    "git": "https://github.com/sory-os-org/libcosmic.git",
+    "git": "https://gitlab.com/sory-os.org/libcosmic.git",
     "branch": "main"
   },
   "vendor_repos": {
     "accounts": {
-      "git": "https://github.com/sory-os-org/accounts.git",
+      "git": "https://gitlab.com/sory-os.org/accounts.git",
       "branch": "main",
       "used_by": ["tasks"]
     }

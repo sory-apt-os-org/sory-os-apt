@@ -5,6 +5,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=soryos-urls.sh
+source "$ROOT_DIR/scripts/soryos-urls.sh"
+
 OUTPUT_DIR="${1:-${SORYOS_APT_ROOT:-$ROOT_DIR/release-pool}}"
 PAGES_BASE="${SORYOS_PAGES_BASE_URL:-}"
 INDEX_URL="${SORYOS_RELEASE_INDEX_URL:-}"
@@ -38,8 +41,8 @@ verify_blake3() {
 }
 
 if [[ -z "$INDEX_URL" && -z "$PAGES_BASE" ]]; then
-  printf 'set SORYOS_PAGES_BASE_URL or SORYOS_RELEASE_INDEX_URL\n' >&2
-  exit 2
+  INDEX_URL="$(soryos_release_index_url "${SORYOS_RELEASE_TAG:-soryos-deb-test-2026.08.13}")"
+  PAGES_BASE="$SORYOS_PAGES_BASE_URL"
 fi
 
 if [[ -z "$INDEX_URL" ]]; then

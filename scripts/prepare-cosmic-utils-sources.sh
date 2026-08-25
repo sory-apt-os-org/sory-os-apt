@@ -14,12 +14,15 @@ REQUESTED=("$@")
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=soryos-urls.sh
+source "$SCRIPT_DIR/soryos-urls.sh"
+
 MANIFEST="$APT_ROOT/cosmic-apps/cosmic-utils-manifest.json"
 
-LIBCOSMIC_REPO="${SORYOS_LIBCOSMIC_REPO:-https://github.com/sory-os-org/libcosmic.git}"
-LIBCOSMIC_REF="${SORYOS_LIBCOSMIC_REF:-main}"
-UTILS_ORG="${SORYOS_COSMIC_UTILS_ORG:-sory-os-org}"
-UTILS_REF="${SORYOS_COSMIC_UTILS_REF:-main}"
+LIBCOSMIC_REPO="${SORYOS_LIBCOSMIC_REPO}"
+LIBCOSMIC_REF="${SORYOS_LIBCOSMIC_REF}"
+UTILS_GIT_BASE="${SORYOS_COSMIC_UTILS_GIT_BASE}"
+UTILS_REF="${SORYOS_COSMIC_UTILS_REF}"
 
 require_tool() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -31,7 +34,8 @@ require_tool() {
 require_tool git
 require_tool python3
 
-if [[ -n "${SORYOS_GITHUB_PAT:-${GITHUB_TOKEN:-}}" ]]; then
+soryos_setup_git_auth
+if [[ "$SORYOS_PLATFORM" != "gitlab" && -n "${SORYOS_GITHUB_PAT:-${GITHUB_TOKEN:-}}" ]]; then
   GIT_AUTH_TOKEN="${SORYOS_GITHUB_PAT:-${GITHUB_TOKEN}}"
   git config --global url."https://x-access-token:${GIT_AUTH_TOKEN}@github.com/".insteadOf "https://github.com/"
 fi
@@ -96,7 +100,7 @@ mkdir -p "$UTILS_DIR"
 sync_repo "$LIBCOSMIC_REPO" "$LIBCOSMIC_REF" "$WORK_DIR/libcosmic"
 
 while IFS= read -r name; do
-  sync_repo "https://github.com/${UTILS_ORG}/${name}.git" "$UTILS_REF" "$UTILS_DIR/$name"
+  sync_repo "${UTILS_GIT_BASE}/${name}.git" "$UTILS_REF" "$UTILS_DIR/$name"
 done < <(python3 -c 'import json,sys; print("\n".join(json.loads(sys.argv[1])))' "$COMPONENTS_JSON")
 
 while IFS= read -r line; do

@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 COSMIC_UTILS_GIT = re.compile(
-    r"https://github\.com/(?:cosmic-utils|sory-os-org)/([A-Za-z0-9_.-]+)(?:\.git)?"
+    r"https://(?:github\.com|gitlab\.com)/(?:cosmic-utils|sory-os-org|sory-os\.org)/([A-Za-z0-9_.-]+)(?:\.git)?"
 )
 
 

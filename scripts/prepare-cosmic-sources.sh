@@ -11,10 +11,14 @@ fi
 
 mkdir -p "$1"
 WORK_DIR="$(cd "$1" && pwd)"
-COSMIC_EPOCH_REPO="${SORYOS_COSMIC_EPOCH_REPO:-https://github.com/sory-os-org/cosmic-epoch.git}"
-COSMIC_EPOCH_REF="${SORYOS_COSMIC_EPOCH_REF:-main}"
-LIBCOSMIC_REPO="${SORYOS_LIBCOSMIC_REPO:-https://github.com/sory-os-org/libcosmic.git}"
-LIBCOSMIC_REF="${SORYOS_LIBCOSMIC_REF:-main}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=soryos-urls.sh
+source "$SCRIPT_DIR/soryos-urls.sh"
+
+COSMIC_EPOCH_REPO="${SORYOS_COSMIC_EPOCH_REPO}"
+COSMIC_EPOCH_REF="${SORYOS_COSMIC_EPOCH_REF}"
+LIBCOSMIC_REPO="${SORYOS_LIBCOSMIC_REPO}"
+LIBCOSMIC_REF="${SORYOS_LIBCOSMIC_REF}"
 
 require_tool() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -25,7 +29,8 @@ require_tool() {
 
 require_tool git
 
-if [[ -n "${SORYOS_GITHUB_PAT:-${GITHUB_TOKEN:-}}" ]]; then
+soryos_setup_git_auth
+if [[ "$SORYOS_PLATFORM" != "gitlab" && -n "${SORYOS_GITHUB_PAT:-${GITHUB_TOKEN:-}}" ]]; then
   GIT_AUTH_TOKEN="${SORYOS_GITHUB_PAT:-${GITHUB_TOKEN}}"
   git config --global url."https://x-access-token:${GIT_AUTH_TOKEN}@github.com/".insteadOf "https://github.com/"
 fi
@@ -72,29 +77,24 @@ declare -A EXT_REPO_REFS=(
   [cosmic-mime-apps]=main
 )
 for ext_repo in cosmic-protocols dbus-settings-bindings freedesktop-icons launch-pad xdg-shell-wrapper cosmic-mime-apps; do
-  sync_repo "https://github.com/sory-os-org/${ext_repo}.git" "${EXT_REPO_REFS[$ext_repo]}" "$WORK_DIR/cosmic-epoch/${ext_repo}"
+  sync_repo "${SORYOS_GIT_BASE_URL}/${ext_repo}.git" "${EXT_REPO_REFS[$ext_repo]}" "$WORK_DIR/cosmic-epoch/${ext_repo}"
 done
 
 # simple-wrapper is listed in .gitmodules but not yet registered in cosmic-epoch's git index.
 if [[ ! -f "$WORK_DIR/cosmic-epoch/simple-wrapper/Cargo.toml" ]]; then
-  sync_repo "https://github.com/sory-os-org/simple-wrapper.git" master_jammy "$WORK_DIR/cosmic-epoch/simple-wrapper"
+  sync_repo "${SORYOS_GIT_BASE_URL}/simple-wrapper.git" master_jammy "$WORK_DIR/cosmic-epoch/simple-wrapper"
 fi
 
 # GTK theme required by cosmic-settings-daemon (not in cosmic-epoch submodules).
 if [[ ! -f "$WORK_DIR/cosmic-epoch/adw-gtk3/debian/control" ]]; then
-  ADW_GTK3_REPO="${SORYOS_ADW_GTK3_REPO:-https://github.com/sory-os-org/adw-gtk3.git}"
-  ADW_GTK3_REF="${SORYOS_ADW_GTK3_REF:-master}"
-  sync_repo "$ADW_GTK3_REPO" "$ADW_GTK3_REF" "$WORK_DIR/cosmic-epoch/adw-gtk3"
+  sync_repo "${SORYOS_ADW_GTK3_REPO}" "${SORYOS_ADW_GTK3_REF:-master}" "$WORK_DIR/cosmic-epoch/adw-gtk3"
 fi
 
 # Live ISO installer (distinst + libdistinst); sources only, published via SoryOS Release.
 if [[ ! -f "$WORK_DIR/cosmic-epoch/distinst/debian/control" ]]; then
-  DISTINST_REPO="${SORYOS_DISTINST_REPO:-https://github.com/sory-os-org/distinst.git}"
-  DISTINST_REF="${SORYOS_DISTINST_REF:-master}"
-  sync_repo "$DISTINST_REPO" "$DISTINST_REF" "$WORK_DIR/cosmic-epoch/distinst"
+  sync_repo "${SORYOS_DISTINST_REPO}" "${SORYOS_DISTINST_REF:-master}" "$WORK_DIR/cosmic-epoch/distinst"
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/rewrite-libcosmic-urls.sh" "$WORK_DIR/cosmic-epoch" "$WORK_DIR/libcosmic"
 "$SCRIPT_DIR/patch-cosmic-ci-fixes.sh" "$WORK_DIR/cosmic-epoch"
 

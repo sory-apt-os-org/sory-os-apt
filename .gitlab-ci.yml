@@ -1,0 +1,117 @@
+# =============================================================================
+# SoryOS APT — GitLab CI (primary; GitHub Actions account unreliable)
+# Mirrors:
+#   build-deb-release.yml
+#   build-cosmic-utils-release.yml
+#   publish-pages.yml
+#   update-deb-release.yml
+# =============================================================================
+#
+# Manual pipeline (Run pipeline → set variables):
+#   SORYOS_PIPELINE=desktop|cosmic-utils|pages|update
+#
+# Required CI/CD variables (Settings → CI/CD → Variables):
+#   SORYOS_GPG_PRIVATE_KEY
+#   SORYOS_INDEX_PRIVATE_KEY_PEM
+#   GITLAB_TOKEN (project access token with api + write_repository) — optional if job token works
+#
+# Catalog:  https://sory-os-org.gitlab.io/sory-os-apt/
+# Releases: https://gitlab.com/sory-os.org/sory-os-apt/-/releases
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+default:
+  image: ubuntu:24.04
+  tags:
+    - saas-linux-small-amd64
+
+variables:
+  SORYOS_PLATFORM: gitlab
+  SORYOS_GITLAB_GROUP: sory-os.org
+  SORYOS_APT_PROJECT: sory-os-apt
+  SORYOS_APT_PROJECT_PATH: sory-os.org/sory-os-apt
+  SORYOS_RELEASE_TAG: soryos-deb-test-2026.08.13
+  SORYOS_BASE_RELEASE_TAG: soryos-deb-test-2026.08.13
+  SORYOS_CU_TAG: soryos-cosmic-utils-2026.08.22
+  SORYOS_CU_BASE_TAG: soryos-deb-test-2026.08.13
+  SORYOS_CU_COMPONENTS: phase1
+  SORYOS_COMPONENTS: all
+  SORYOS_PIPELINE: desktop
+  FF_USE_FASTZIP: "true"
+  ARTIFACT_COMPRESSION_LEVEL: fast
+
+stages:
+  - build
+  - publish
+  - deploy
+
+.build_template: &build_template
+  before_script:
+    - apt-get update && apt-get install -y bash curl ca-certificates git
+    - chmod +x scripts/gitlab-ci/*.sh scripts/*.sh
+
+build-desktop-release:
+  <<: *build_template
+  stage: build
+  rules:
+    - if: $SORYOS_PIPELINE == "desktop"
+  script:
+    - ./scripts/gitlab-ci/build-deb-release.sh
+  timeout: 3h
+  artifacts:
+    when: on_success
+    expire_in: 2 days
+    paths:
+      - release-out/
+
+build-cosmic-utils-release:
+  <<: *build_template
+  stage: build
+  rules:
+    - if: $SORYOS_PIPELINE == "cosmic-utils"
+  script:
+    - ./scripts/gitlab-ci/build-cosmic-utils-release.sh
+  timeout: 3h
+  artifacts:
+    when: on_success
+    expire_in: 2 days
+    paths:
+      - release-out/
+
+update-deb-release:
+  <<: *build_template
+  stage: build
+  rules:
+    - if: $SORYOS_PIPELINE == "update"
+  script:
+    - ./scripts/gitlab-ci/update-deb-release.sh
+  timeout: 2h
+
+publish-pages:
+  <<: *build_template
+  stage: deploy
+  rules:
+    - if: $SORYOS_PIPELINE == "pages"
+  script:
+    - ./scripts/gitlab-ci/publish-pages.sh
+  artifacts:
+    paths:
+      - public
+  pages:
+    publish: public
+
+# Nightly cosmic-utils phase1 (replaces GitHub schedule)
+cosmic-utils-schedule:
+  <<: *build_template
+  stage: build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  variables:
+    SORYOS_PIPELINE: cosmic-utils
+    SORYOS_CU_COMPONENTS: phase1
+  script:
+    - ./scripts/gitlab-ci/build-cosmic-utils-release.sh
+  timeout: 3h

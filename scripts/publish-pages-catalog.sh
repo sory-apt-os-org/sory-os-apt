@@ -7,9 +7,12 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=soryos-urls.sh
+source "$ROOT_DIR/scripts/soryos-urls.sh"
+
 SOURCE_DIR="${1:-$ROOT_DIR/pages-out}"
 PAGES_DIR="${PAGES_DIR:-$ROOT_DIR/pages-publish}"
-REPO="${SORYOS_APT_REPO:-sory-os-org/sory-os-apt}"
+REPO="${SORYOS_APT_REPO}"
 TAG="${SORYOS_RELEASE_TAG:-}"
 
 if [[ ! -d "$SOURCE_DIR" ]]; then
@@ -27,10 +30,12 @@ if [[ -n "$TAG" ]]; then
   cat > "$PAGES_DIR/release-tag.json" <<EOF
 {
   "schema": 1,
+  "platform": "${SORYOS_PLATFORM}",
   "repository": "${REPO}",
   "tag": "${TAG}",
-  "index_url": "https://${REPO%%/*}.github.io/${REPO#*/}/index.json",
-  "pages_base_url": "https://${REPO%%/*}.github.io/${REPO#*/}"
+  "index_url": "${SORYOS_PAGES_BASE_URL}/index.json",
+  "pages_base_url": "${SORYOS_PAGES_BASE_URL}",
+  "release_download_base": "${SORYOS_RELEASE_DOWNLOAD_BASE}/${TAG}/downloads"
 }
 EOF
 fi
