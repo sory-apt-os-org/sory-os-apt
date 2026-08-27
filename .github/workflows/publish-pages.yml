@@ -18,7 +18,7 @@ permissions:
   id-token: write
 
 env:
-  SORYOS_APT_REPO: sory-os-org/sory-os-apt
+  SORYOS_APT_REPO: sory-apt-os-org/sory-os-apt
 
 jobs:
   trigger-cosmic-utils:

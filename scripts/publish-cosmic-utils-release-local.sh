@@ -11,7 +11,7 @@ fi
 DEB_DIR="$(cd "$1" && pwd)"
 TAG="$2"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO="${SORYOS_APT_REPO:-sory-os-org/sory-os-apt}"
+REPO="${SORYOS_APT_REPO:-sory-apt-os-org/sory-os-apt}"
 BASE_TAG="${SORYOS_CU_BASE_TAG:-soryos-deb-test-2026.08.13}"
 RELEASE_OUT="$ROOT/release-out-cosmic-utils"
 

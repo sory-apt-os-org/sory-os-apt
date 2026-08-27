@@ -3,7 +3,7 @@
 # =============================================================================
 # Separate CI from the official cosmic-epoch desktop stack. Sources are cloned
 # from sory-os-org forks (cosmic-utils mirrors), built with libcosmic, signed,
-# and published as an immutable GitHub Release on sory-os-org/sory-os-apt.
+# and published as an immutable GitHub Release on sory-apt-os-org/sory-os-apt.
 # =============================================================================
 
 name: Build cosmic-utils Debian Release
@@ -60,7 +60,7 @@ env:
   CARGO_TERM_COLOR: always
   DEBIAN_FRONTEND: noninteractive
   GITHUB_TOKEN: ${{ github.token }}
-  SORYOS_APT_REPO: sory-os-org/sory-os-apt
+  SORYOS_APT_REPO: sory-apt-os-org/sory-os-apt
   SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
   SORYOS_LIBCOSMIC_REF: main
   SORYOS_COSMIC_UTILS_WORK: /tmp/soryos-cosmic-utils

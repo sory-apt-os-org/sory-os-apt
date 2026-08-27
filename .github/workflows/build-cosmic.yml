@@ -226,7 +226,7 @@ jobs:
           python3 scripts/generate-release-index.py \
             release-out \
             "${{ github.event.inputs.release_tag }}" \
-            "sory-os-org/sory-os-apt" \
+            "sory-apt-os-org/sory-os-apt" \
             release-out/index.json
           umask 077
           printf '%s\n' "$SORYOS_INDEX_PRIVATE_KEY_PEM" > index-signing-key.pem
@@ -239,10 +239,10 @@ jobs:
         run: |
           cd soryos-apt/release-out
           gh release create "${{ github.event.inputs.release_tag }}" \
-            --repo sory-os-org/sory-os-apt \
+            --repo sory-apt-os-org/sory-os-apt \
             --title "SoryOS Debian incremental (${{ github.event.inputs.release_tag }})" \
             --notes "COSMIC components: ${{ needs.detect-changes.outputs.changes }}"
           find . -maxdepth 1 -type f -print0 | sort -z | while IFS= read -r -d '' asset; do
             gh release upload "${{ github.event.inputs.release_tag }}" "$asset" \
-              --repo sory-os-org/sory-os-apt
+              --repo sory-apt-os-org/sory-os-apt
           done

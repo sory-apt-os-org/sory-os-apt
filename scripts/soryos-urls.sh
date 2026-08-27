@@ -28,9 +28,9 @@ soryos_load_urls() {
     SORYOS_DISTINST_REF="${SORYOS_DISTINST_REF:-master}"
   else
     SORYOS_GIT_HOST="${SORYOS_GIT_HOST:-github.com}"
-    SORYOS_APT_REPO="${SORYOS_APT_REPO:-sory-os-org/sory-os-apt}"
+    SORYOS_APT_REPO="${SORYOS_APT_REPO:-sory-apt-os-org/sory-os-apt}"
     SORYOS_GIT_BASE_URL="${SORYOS_GIT_BASE_URL:-https://${SORYOS_GIT_HOST}/sory-os-org}"
-    SORYOS_PAGES_BASE_URL="${SORYOS_PAGES_BASE_URL:-https://sory-os-org.github.io/sory-os-apt}"
+    SORYOS_PAGES_BASE_URL="${SORYOS_PAGES_BASE_URL:-https://sory-apt-os-org.github.io/sory-os-apt}"
     SORYOS_RELEASE_DOWNLOAD_BASE="${SORYOS_RELEASE_DOWNLOAD_BASE:-https://${SORYOS_GIT_HOST}/${SORYOS_APT_REPO}/releases/download}"
     SORYOS_COSMIC_EPOCH_REPO="${SORYOS_COSMIC_EPOCH_REPO:-${SORYOS_GIT_BASE_URL}/cosmic-epoch.git}"
     SORYOS_COSMIC_EPOCH_REF="${SORYOS_COSMIC_EPOCH_REF:-main}"

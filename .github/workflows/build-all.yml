@@ -20,7 +20,7 @@ env:
   CARGO_TERM_COLOR: always
   DEBIAN_FRONTEND: noninteractive
   GITHUB_TOKEN: ${{ github.token }}
-  SORYOS_APT_REPO: sory-os-org/sory-os-apt
+  SORYOS_APT_REPO: sory-apt-os-org/sory-os-apt
   SORYOS_COSMIC_EPOCH_REPO: https://github.com/sory-os-org/cosmic-epoch.git
   SORYOS_COSMIC_EPOCH_REF: main
   SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
