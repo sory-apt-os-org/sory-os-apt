@@ -26,7 +26,7 @@ workflow:
 default:
   image: ubuntu:24.04
   tags:
-    - soryos-local
+    - saas-linux-small-amd64
 
 variables:
   SORYOS_PLATFORM: gitlab
