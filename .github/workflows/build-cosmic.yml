@@ -16,6 +16,8 @@ on:
         description: 'Immutable GitHub Release tag (required to publish)'
         required: false
         default: ''
+  push:
+    branches: [__disabled__]
   schedule:
     - cron: '0 3 * * *'
 

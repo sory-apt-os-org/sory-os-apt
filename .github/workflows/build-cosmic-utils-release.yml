@@ -38,13 +38,7 @@ on:
         type: boolean
         default: true
   push:
-    branches: [main]
-    paths:
-      - '.github/workflows/build-cosmic-utils-release.yml'
-      - 'cosmic-apps/cosmic-utils-manifest.json'
-      - 'scripts/prepare-cosmic-utils-sources.sh'
-      - 'scripts/build-cosmic-utils-deb.sh'
-      - 'scripts/rewrite-cosmic-utils-deps.*'
+    branches: [__disabled__]
   repository_dispatch:
     types: [build-cosmic-utils]
   # Runs without manual "Run workflow" (needed when the GitHub account has Actions disabled for workflow_dispatch).
