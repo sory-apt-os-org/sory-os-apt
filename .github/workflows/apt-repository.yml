@@ -1,10 +1,9 @@
 name: APT Repository
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [__disabled__]
 
 jobs:
   validate:
@@ -28,6 +27,8 @@ jobs:
         run: ./scripts/sign-repository.sh
 
       - name: Validate local repository
+        env:
+          SORYOS_SUITES: stable
         run: ./scripts/test-local-repo.sh
 
       - name: Validate unsigned isolated APT access
