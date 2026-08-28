@@ -19,6 +19,7 @@ permissions:
 
 env:
   SORYOS_APT_REPO: sory-apt-os-org/sory-os-apt
+  SORYOS_PLATFORM: github
 
 jobs:
   trigger-cosmic-utils:

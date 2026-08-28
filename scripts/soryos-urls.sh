@@ -4,7 +4,7 @@
 set -euo pipefail
 
 soryos_load_urls() {
-  SORYOS_PLATFORM="${SORYOS_PLATFORM:-gitlab}"
+  SORYOS_PLATFORM="${SORYOS_PLATFORM:-github}"
 
   if [[ "$SORYOS_PLATFORM" == "gitlab" ]]; then
     SORYOS_GIT_HOST="${SORYOS_GIT_HOST:-gitlab.com}"
