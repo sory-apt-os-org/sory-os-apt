@@ -230,8 +230,8 @@ jobs:
             mold nasm \
             imagemagick fonts-open-sans meson patchelf b3sum jq \
             sassc ninja-build libparted-dev
-          rustup default stable
           rustup toolchain install 1.93 --profile minimal
+          rustup default 1.93
           cargo install just --locked
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 

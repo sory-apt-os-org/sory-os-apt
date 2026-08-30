@@ -195,8 +195,8 @@ jobs:
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
             libsqlite3-dev libqalculate-dev libheif-dev libturbojpeg0-dev \
             mold nasm imagemagick fonts-open-sans patchelf
-          rustup default stable
           rustup toolchain install 1.93 --profile minimal
+          rustup default 1.93
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - name: Build .deb
