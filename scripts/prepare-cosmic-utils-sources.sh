@@ -46,11 +46,27 @@ sync_repo() {
   local dest="$3"
   mkdir -p "$(dirname "$dest")"
   if [[ -d "$dest/.git" ]]; then
-    git -C "$dest" fetch --depth 1 origin "$ref"
+    if ! git -C "$dest" fetch --depth 1 origin "$ref" 2>/dev/null; then
+      # Fallback to remote default branch
+      local default_ref
+      default_ref="$(git -C "$dest" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
+      [[ -z "$default_ref" ]] && default_ref="$(git -C "$dest" remote show origin 2>/dev/null | sed -n 's/.*HEAD branch: //p')"
+      printf 'warning: ref %s not found for %s, falling back to default %s\n' "$ref" "$url" "$default_ref" >&2
+      ref="$default_ref"
+      git -C "$dest" fetch --depth 1 origin "$ref"
+    fi
     git -C "$dest" checkout -f "$ref"
     git -C "$dest" reset --hard "origin/$ref" 2>/dev/null || git -C "$dest" reset --hard "$ref"
   else
-    git clone --depth 1 --branch "$ref" "$url" "$dest"
+    if ! git clone --depth 1 --branch "$ref" "$url" "$dest" 2>/dev/null; then
+      # Fallback: clone without branch filter, then checkout the default branch
+      printf 'warning: ref %s not found for %s, falling back to remote default\n' "$ref" "$url" >&2
+      git clone --depth 1 "$url" "$dest"
+      local default_ref
+      default_ref="$(git -C "$dest" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
+      [[ -z "$default_ref" ]] && default_ref="$(git -C "$dest" remote show origin 2>/dev/null | sed -n 's/.*HEAD branch: //p')"
+      git -C "$dest" checkout "$default_ref"
+    fi
   fi
 }
 
