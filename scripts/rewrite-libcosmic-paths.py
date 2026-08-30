@@ -253,11 +253,15 @@ def rewrite_table_sections(
             i += 1
 
         body = "\n".join(section)
+        # Exclude comment lines from git URL matching (comments may contain libcosmic URLs)
+        non_comment_body = "\n".join(
+            l for l in section if not l.strip().startswith("#")
+        )
         settings_target = settings_dir(cosmic_epoch, dep_name)
-        epoch_target = epoch_crate_dir(cosmic_epoch, dep_name, body)
-        if LIBCOSMIC_GIT.search(body):
+        epoch_target = epoch_crate_dir(cosmic_epoch, dep_name, non_comment_body)
+        if LIBCOSMIC_GIT.search(non_comment_body):
             path = rel_path(cargo_file, crate_dir(libcosmic, dep_name))
-        elif SETTINGS_GIT.search(body) and settings_target is not None:
+        elif SETTINGS_GIT.search(non_comment_body) and settings_target is not None:
             path = rel_path(cargo_file, settings_target)
         elif epoch_target is not None and epoch_target.is_dir():
             path = rel_path(cargo_file, epoch_target)
