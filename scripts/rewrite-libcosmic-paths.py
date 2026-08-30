@@ -301,7 +301,7 @@ PATCH_SOURCES = (
 )
 
 PATCH_SECTION_RE = re.compile(
-    r"\n\[patch\.'[^']*libcosmic[^']*'\](?:\n(?!#*\[).*)*",
+    r"\n\[patch\.['\"][^'\"]*libcosmic[^'\"]*['\"]\](?:\n(?!#*\[).*)*",
     re.MULTILINE,
 )
 
@@ -368,7 +368,7 @@ WINIT_PATCH_SOURCES = (
 )
 
 WINIT_PATCH_RE = re.compile(
-    r"\n\[patch\.'[^']*winit[^']*'\](?:\n(?!#*\[).*)*",
+    r"\n\[patch\.['\"][^'\"]*winit[^'\"]*['\"]\](?:\n(?!#*\[).*)*",
     re.MULTILINE,
 )
 

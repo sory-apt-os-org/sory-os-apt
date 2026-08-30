@@ -148,7 +148,14 @@ build_cargo_just() {
   cd "$COMPONENT_DIR"
   "$SCRIPT_DIR/ensure-cargo-lock.sh" "$PWD"
   if command -v just >/dev/null 2>&1 && grep -q '^install:' justfile 2>/dev/null; then
-    just build-release
+    # Some justfiles use 'build:' instead of 'build-release:' (e.g. weather, sysinfo)
+    if grep -q '^build-release:' justfile 2>/dev/null; then
+      just build-release
+    elif grep -q '^build:' justfile 2>/dev/null; then
+      just build
+    else
+      cargo build --release
+    fi
     just rootdir="$PKG_ROOT" install
     if grep -q '^install-schema:' justfile 2>/dev/null; then
       just rootdir="$PKG_ROOT" install-schema || true
