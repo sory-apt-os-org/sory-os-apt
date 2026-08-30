@@ -10,7 +10,7 @@
     "accounts": {
       "git": "https://gitlab.com/sory-os.org/accounts.git",
       "branch": "main",
-      "used_by": ["tasks"]
+      "used_by": ["tasks", "calendar"]
     }
   },
   "release_tag_prefix": "soryos-cosmic-utils",
@@ -72,7 +72,8 @@
       "phase": 1,
       "build": "cargo-just",
       "package": "cosmic-ext-calendar",
-      "description": "COSMIC calendar"
+      "description": "COSMIC calendar",
+      "vendor": ["accounts"]
     },
     {
       "name": "examine",
