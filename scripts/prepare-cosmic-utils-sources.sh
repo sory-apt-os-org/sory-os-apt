@@ -119,6 +119,8 @@ sync_repo "$LIBCOSMIC_REPO" "$LIBCOSMIC_REF" "$WORK_DIR/libcosmic"
 COSMIC_EPOCH_REPO="${SORYOS_COSMIC_EPOCH_REPO:-${SORYOS_GIT_BASE_URL}/cosmic-epoch.git}"
 COSMIC_EPOCH_REF="${SORYOS_COSMIC_EPOCH_REF:-main}"
 sync_repo "$COSMIC_EPOCH_REPO" "$COSMIC_EPOCH_REF" "$WORK_DIR/cosmic-epoch"
+# Rewrite vendor URLs in cosmic-epoch as well (used via libcosmic path deps)
+"$SCRIPT_DIR/rewrite-libcosmic-paths.py" "$WORK_DIR/cosmic-epoch" "$WORK_DIR/libcosmic" 2>&1 | sed 's/^/[cosmic-epoch] /' || true
 
 while IFS= read -r name; do
   sync_repo "${UTILS_GIT_BASE}/${name}.git" "$UTILS_REF" "$UTILS_DIR/$name"
