@@ -52,9 +52,9 @@ env:
   CARGO_TERM_COLOR: always
   DEBIAN_FRONTEND: noninteractive
   GITHUB_TOKEN: ${{ github.token }}
+  GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
   SORYOS_APT_REPO: sory-apt-os-org/sory-os-apt
-  SORYOS_PLATFORM: github
-  SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
+  SORYOS_PLATFORM: gitlab
   SORYOS_LIBCOSMIC_REF: main
   SORYOS_COSMIC_UTILS_WORK: /tmp/soryos-cosmic-utils
   SORYOS_CU_COMPONENTS: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.components || github.event.inputs.components || 'phase1' }}
