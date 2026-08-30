@@ -217,7 +217,7 @@ jobs:
   publish:
     name: Publish immutable GitHub Release
     needs: [detect-changes, build]
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    if: always() && needs.detect-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -233,6 +233,7 @@ jobs:
           sudo apt-get install -y apt-utils dpkg-dev gnupg gzip b3sum jq openssl curl
 
       - name: Download built .deb artifacts
+        if: always()
         uses: actions/download-artifact@v4
         with:
           path: soryos-apt/release-out/pool/stable
@@ -316,25 +317,37 @@ jobs:
             > release-out/index-signing-key.pub.hex
           rm -f index-signing-key.pem
 
-      - name: Ensure immutable Release tag is unused
+      - name: Ensure Release tag exists (create if missing)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "${{ env.SORYOS_CU_TAG }}" --repo "${{ env.SORYOS_APT_REPO }}" >/dev/null 2>&1; then
-            echo "Release tag already exists; refusing to overwrite immutable artifacts" >&2
-            exit 1
+            echo "Release ${{ env.SORYOS_CU_TAG }} already exists — will add missing assets only"
+          else
+            gh release create "${{ env.SORYOS_CU_TAG }}" \
+              --repo "${{ env.SORYOS_APT_REPO }}" \
+              --title "SoryOS cosmic-utils packages (${{ env.SORYOS_CU_TAG }})" \
+              --notes "Community cosmic-utils apps packaged for SoryOS. Built components: ${{ needs.detect-changes.outputs.components }}"
           fi
 
-      - name: Upload Release assets
+      - name: Upload Release assets (skip already published)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd soryos-apt/release-out
-          gh release create "${{ env.SORYOS_CU_TAG }}" \
-            --repo "${{ env.SORYOS_APT_REPO }}" \
-            --title "SoryOS cosmic-utils packages (${{ env.SORYOS_CU_TAG }})" \
-            --notes "Community cosmic-utils apps packaged for SoryOS. Built components: ${{ needs.detect-changes.outputs.components }}"
+          if ! gh release view "${{ env.SORYOS_CU_TAG }}" --repo "${{ env.SORYOS_APT_REPO }}" >/dev/null 2>&1; then
+            gh release create "${{ env.SORYOS_CU_TAG }}" \
+              --repo "${{ env.SORYOS_APT_REPO }}" \
+              --title "SoryOS cosmic-utils packages (${{ env.SORYOS_CU_TAG }})" \
+              --notes "Community cosmic-utils apps packaged for SoryOS. Built components: ${{ needs.detect-changes.outputs.components }}"
+          fi
+          EXISTING_ASSETS="$(gh release view "${{ env.SORYOS_CU_TAG }}" --repo "${{ env.SORYOS_APT_REPO }}" --json assets --jq '.assets[].name' 2>/dev/null || true)"
           while IFS= read -r -d '' asset; do
+            ASSET_NAME="$(basename "$asset")"
+            if echo "$EXISTING_ASSETS" | grep -qx "$ASSET_NAME"; then
+              echo "Asset déjà publié, on passe: $ASSET_NAME"
+              continue
+            fi
             uploaded=false
             for attempt in 1 2 3 4 5; do
               if gh release upload "${{ env.SORYOS_CU_TAG }}" "$asset" --repo "${{ env.SORYOS_APT_REPO }}"; then
