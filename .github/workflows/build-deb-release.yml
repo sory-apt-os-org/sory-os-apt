@@ -53,7 +53,7 @@ env:
 jobs:
   detect-changes:
     name: Detect changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       components: ${{ steps.detect.outputs.components }}
       components_json: ${{ steps.detect.outputs.components_json }}
@@ -161,7 +161,7 @@ jobs:
     name: Integration packages
     needs: detect-changes
     if: needs.detect-changes.outputs.has_changes == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -190,7 +190,7 @@ jobs:
     name: ${{ matrix.component }}
     needs: detect-changes
     if: needs.detect-changes.outputs.has_changes == 'true' && needs.detect-changes.outputs.components != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -291,7 +291,7 @@ jobs:
     name: Publish immutable GitHub Release
     needs: [detect-changes, build-integration, build-cosmic]
     if: needs.detect-changes.outputs.has_changes == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       actions: write
