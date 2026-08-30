@@ -81,18 +81,18 @@ FREEDESKTOP_ICONS_GIT = re.compile(
 )
 
 POP_OS_VENDOR_GIT_REPLACEMENTS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"https://github\.com/pop-os/winit(?:\.git)?"), "https://github.com/sory-os-org/winit"),
+    (re.compile(r"https://github\.com/pop-os/winit(?:\.git)?"), "https://gitlab.com/sory-os.org/winit"),
     (
         re.compile(r"https://github\.com/pop-os/smithay-clipboard(?:\.git)?"),
-        "https://github.com/sory-os-org/smithay-clipboard",
+        "https://gitlab.com/sory-os.org/smithay-clipboard",
     ),
     (
         re.compile(r"https://github\.com/pop-os/dbus-settings-bindings(?:\.git)?"),
-        "https://github.com/sory-os-org/dbus-settings-bindings",
+        "https://gitlab.com/sory-os.org/dbus-settings-bindings",
     ),
     (
         re.compile(r"https://github\.com/pop-os/xdg-shell-wrapper(?:\.git)?"),
-        "https://github.com/sory-os-org/xdg-shell-wrapper",
+        "https://gitlab.com/sory-os.org/xdg-shell-wrapper",
     ),
 )
 
@@ -282,8 +282,8 @@ def rewrite_table_sections(
 PATCH_SOURCES = (
     "https://github.com/pop-os/libcosmic",
     "https://github.com/pop-os/libcosmic.git",
-    "https://github.com/sory-os-org/libcosmic",
-    "https://github.com/sory-os-org/libcosmic.git",
+    "https://gitlab.com/sory-os.org/libcosmic",
+    "https://gitlab.com/sory-os.org/libcosmic.git",
 )
 
 PATCH_SECTION_RE = re.compile(
@@ -362,15 +362,15 @@ WINIT_PATCH_RE = re.compile(
 def winit_patch_block() -> str:
     blocks: list[str] = []
     winit_dep = (
-        'winit = { git = "https://github.com/sory-os-org/winit.git", tag = "cosmic-0.14" }'
+        'winit = { git = "https://gitlab.com/sory-os.org/winit.git", tag = "cosmic-0.14" }'
     )
     for url in WINIT_PATCH_SOURCES:
         lines = [
             f"[patch.'{url}']",
             winit_dep,
-            'winit-core = { git = "https://github.com/sory-os-org/winit.git", tag = "cosmic-0.14" }',
-            'winit-common = { git = "https://github.com/sory-os-org/winit.git", tag = "cosmic-0.14" }',
-            'dpi = { git = "https://github.com/sory-os-org/winit.git", tag = "cosmic-0.14" }',
+            'winit-core = { git = "https://gitlab.com/sory-os.org/winit.git", tag = "cosmic-0.14" }',
+            'winit-common = { git = "https://gitlab.com/sory-os.org/winit.git", tag = "cosmic-0.14" }',
+            'dpi = { git = "https://gitlab.com/sory-os.org/winit.git", tag = "cosmic-0.14" }',
         ]
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks)

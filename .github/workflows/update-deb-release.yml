@@ -27,9 +27,9 @@ env:
   GITHUB_TOKEN: ${{ github.token }}
   SORYOS_APT_REPO: sory-apt-os-org/sory-os-apt
   SORYOS_PLATFORM: github
-  SORYOS_COSMIC_EPOCH_REPO: https://github.com/sory-os-org/cosmic-epoch.git
+  SORYOS_COSMIC_EPOCH_REPO: https://gitlab.com/sory-os.org/cosmic-epoch.git
   SORYOS_COSMIC_EPOCH_REF: main
-  SORYOS_LIBCOSMIC_REPO: https://github.com/sory-os-org/libcosmic.git
+  SORYOS_LIBCOSMIC_REPO: https://gitlab.com/sory-os.org/libcosmic.git
   SORYOS_LIBCOSMIC_REF: main
   SORYOS_COSMIC_WORK: /tmp/soryos-sources
 

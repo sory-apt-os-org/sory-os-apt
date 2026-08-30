@@ -2,15 +2,15 @@
 # CI clones these; local ISO build must NOT compile from them.
 
 [cosmic_epoch]
-git = "https://github.com/sory-os-org/cosmic-epoch.git"
+git = "https://gitlab.com/sory-os.org/cosmic-epoch.git"
 branch = "main"
 
 [libcosmic]
-git = "https://github.com/sory-os-org/libcosmic.git"
+git = "https://gitlab.com/sory-os.org/libcosmic.git"
 branch = "main"
 
 [cosmic_sory_ia]
-git = "https://github.com/sory-os-org/cosmic-sory-ia.git"
+git = "https://gitlab.com/sory-os.org/cosmic-sory-ia.git"
 branch = "main"
 
 # Publication (binaries on Release, catalog on Pages)

@@ -34,7 +34,7 @@ Alternative : connecte un **owner** de `sory-os-org` et lance le workflow depuis
 
 ## 2. Dépôt `sory-os-org/sory-os-apt`
 
-1. https://github.com/sory-os-org/sory-os-apt/settings/actions
+1. https://gitlab.com/sory-os.org/sory-os-apt/settings/actions
 2. **Actions permissions** → autoriser les actions (idéalement toutes pour l’org)
 3. Vérifier qu’aucun workflow n’est **disabled** dans l’onglet Actions
 

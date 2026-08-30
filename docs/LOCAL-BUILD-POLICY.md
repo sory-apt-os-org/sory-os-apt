@@ -3,7 +3,7 @@
 Ce document liste **tout ce qui doit être compilé sur les runners GitHub Actions**
 et **ce qui peut (ou doit) être fait sur un PC de développement** avec RAM limitée.
 
-Sources COSMIC : chaque app déclare `git = "https://github.com/sory-os-org/libcosmic…"`
+Sources COSMIC : chaque app déclare `git = "https://gitlab.com/sory-os.org/libcosmic…"`
 (même forme que Pop!_OS, org `pop-os` → `sory-os-org`). Lors du clone CI,
 `rewrite-libcosmic-urls.sh` applique ce remplacement dans les submodules upstream.
 (via `scripts/prepare-cosmic-sources.sh`, modèle recettes Redox).

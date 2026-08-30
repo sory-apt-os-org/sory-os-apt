@@ -44,9 +44,9 @@ sync_repo() {
 
 # Components that live outside cosmic-epoch submodules (no libcosmic / submodule tree).
 declare -A STANDALONE_URL=(
-  [adw-gtk3]="https://github.com/sory-os-org/adw-gtk3.git"
-  [distinst]="https://github.com/sory-os-org/distinst.git"
-  [cosmic-sound-theme]="https://github.com/sory-os-org/cosmic-sound-theme.git"
+  [adw-gtk3]="https://gitlab.com/sory-os.org/adw-gtk3.git"
+  [distinst]="https://gitlab.com/sory-os.org/distinst.git"
+  [cosmic-sound-theme]="https://gitlab.com/sory-os.org/cosmic-sound-theme.git"
 )
 declare -A STANDALONE_REF=(
   [adw-gtk3]="${SORYOS_ADW_GTK3_REF:-master}"
