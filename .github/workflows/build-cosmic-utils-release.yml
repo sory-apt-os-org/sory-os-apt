@@ -248,7 +248,7 @@ jobs:
           cd soryos-apt
           INDEX_URL="https://github.com/${{ env.SORYOS_APT_REPO }}/releases/download/${BASE_TAG}/index.json"
           mkdir -p release-out/pool/stable
-          curl -fsSL "$INDEX_URL" -o /tmp/base-index.json
+          curl -fsSL "$INDEX_URL" -o /tmp/base-index.json || echo '{"packages":{}}' > /tmp/base-index.json
           python3 - <<'PY'
           import json
           import pathlib
