@@ -1,0 +1,8 @@
+name: Test Runner
+on: workflow_dispatch
+permissions: contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "runner ok" && uname -a && echo "test passed"
