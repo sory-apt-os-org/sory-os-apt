@@ -66,11 +66,27 @@ def rewrite_table_sections(text: str, cargo_file: Path, utils_dir: Path) -> str:
         while i < len(lines) and not lines[i].startswith("["):
             body.append(lines[i])
             i += 1
-        if not section.startswith("dependencies"):
+        # Process sections: [dependencies.X], [target.'cfg(...)'.dependencies.X], etc.
+        # Skip only [target.X] / [dev-dependencies] / other non-dependency sections.
+        is_dep_section = (
+            section == "dependencies"
+            or section.startswith("dependencies.")
+            or ".dependencies." in section
+            or section.startswith("build-dependencies.")
+            or ".build-dependencies." in section
+            or section.startswith("dev-dependencies.")
+            or ".dev-dependencies." in section
+        )
+        if not is_dep_section:
             out.extend(block + body)
             continue
-        dep_name = section.split(".")[-1] if section != "dependencies" else None
-        if section == "dependencies":
+        # For bare [dependencies] (no .X), keep as is
+        bare_deps = (
+            section == "dependencies"
+            or section == "dev-dependencies"
+            or section == "build-dependencies"
+        )
+        if bare_deps:
             out.extend(block + body)
             continue
         git_line = next((row for row in body if "git =" in row or "git=" in row), None)

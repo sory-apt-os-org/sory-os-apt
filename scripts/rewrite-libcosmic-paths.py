@@ -226,16 +226,26 @@ def rewrite_table_sections(
     i = 0
     while i < len(lines):
         line = lines[i]
+        # Match [dependencies.X], [dev-dependencies.X], [target.'cfg(...)'.dependencies.X], [patch.'...'.X], etc.
         header = re.match(
-            r"^\[(?:dependencies|dev-dependencies|build-dependencies|workspace\.dependencies|patch\.[^\]]+)\.([A-Za-z0-9_-]+)\]\s*$",
+            r"^\[(.*)\.([A-Za-z0-9_-]+)\]\s*$",
             line,
         )
         if not header:
             out.append(line)
             i += 1
             continue
+        section_prefix = header.group(1)
+        # Only process dependency-like sections (including target-specific)
+        if not any(
+            kw in section_prefix
+            for kw in ("dependencies", "patch.")
+        ):
+            out.append(line)
+            i += 1
+            continue
 
-        dep_name = header.group(1)
+        dep_name = header.group(2)
         section = [line]
         i += 1
         while i < len(lines) and not lines[i].startswith("["):
